@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('myapp', '0017_remove_post_likes_post_views'),
+        ('wordflow', '0017_remove_post_likes_post_views'),
     ]
 
     operations = [

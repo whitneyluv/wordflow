@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("myapp", "0004_userinfo_address_userinfo_dob_alter_comment_time_and_more"),
+        ("wordflow", "0004_userinfo_address_userinfo_dob_alter_comment_time_and_more"),
     ]
 
     operations = [

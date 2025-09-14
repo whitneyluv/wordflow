@@ -8,7 +8,7 @@ import django.utils.timezone
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("myapp", "0003_rename_comment_comment_postcomment_and_more"),
+        ("wordflow", "0003_rename_comment_comment_postcomment_and_more"),
     ]
 
     operations = [

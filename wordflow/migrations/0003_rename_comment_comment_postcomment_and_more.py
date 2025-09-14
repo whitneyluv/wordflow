@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("myapp", "0002_rename_username_post_post_remove_comment_username_and_more"),
+        ("wordflow", "0002_rename_username_post_post_remove_comment_username_and_more"),
     ]
 
     operations = [

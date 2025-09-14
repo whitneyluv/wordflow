@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("myapp", "0001_initial"),
+        ("wordflow", "0001_initial"),
     ]
 
     operations = [
@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
             model_name="comment",
             name="comment",
             field=models.ForeignKey(
-                default=1, on_delete=django.db.models.deletion.CASCADE, to="myapp.post"
+                default=1, on_delete=django.db.models.deletion.CASCADE, to="wordflow.post"
             ),
             preserve_default=False,
         ),

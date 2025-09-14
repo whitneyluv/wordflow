@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("myapp", "0009_alter_comment_time_alter_post_time"),
+        ("wordflow", "0009_alter_comment_time_alter_post_time"),
     ]
 
     operations = [
