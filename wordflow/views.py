@@ -245,12 +245,13 @@ def profileedit(request, id):
         email = request.POST['email']
 
         user = User.objects.get(id=id)
-        user.email = email
+        user.first_name = firstname
         user.last_name = lastname
+        user.email = email
         user.save()
         return redirect('profile', id=id)
 
-    return render(request, "profile.html", {'posts': Post.objects.filter(user_id=id), 'user': User.objects.get(id=id), 'media_url': settings.MEDIA_URL})
+    return render(request, "profileedit.html", {'user': User.objects.get(id=id)})
 
 
 @login_required

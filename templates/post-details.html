@@ -62,8 +62,8 @@ https://templatemo.com/tm-551-stand-blog
                       <ul class="post-info">
                         <li><a href="{% url 'profile' post.user.id %}">Автор: {{post.user.username}}</a></li>
                         <li><a href="#">{{post.time}}</a></li>
-                        <li><a href="#">{{post|comment_count}} комментариев</a></li>
-                        <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</a></li>
+                        <li><a href="#">{{post|comment_count_text}}</a></li>
+                        <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views|views_count_text}}</a></li>
                       </ul>
                       <div>{{post.content|safe}}</div>
                       <div class="post-options d-flex justify-content-between align-items-center mt-3">
@@ -83,18 +83,11 @@ https://templatemo.com/tm-551-stand-blog
                           </div>
                           {% endif %}
                           
-                          {% if user.is_authenticated %}
-                            {% if post.user == user or user.is_superuser %}
-                            <a href="{% url 'manage_editors' post.id %}" class="btn btn-outline-secondary btn-sm">
-                              <i class="fas fa-users"></i> Редакторы
-                            </a>
-                            {% endif %}
-                          {% endif %}
                         </div>
                         
                         <div class="small text-muted">
-                          <span class="me-3"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</span>
-                          <span><i class="fa fa-comment"></i> {{post|comment_count}} комментариев</span>
+                          <span class="me-3"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views|views_count_text}}</span>
+                          <span><i class="fa fa-comment"></i> {{post|comment_count_text}}</span>
                         </div>
                       </div>
                     </div>
