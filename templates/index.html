@@ -1,4 +1,5 @@
 {% load static %}
+{% load post_extras %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -29,6 +30,14 @@
 <link rel="stylesheet" href="{% static 'assets/css/owl.css' %}">
 <link rel="stylesheet" href="{% static 'assets/css/styles.css' %}">
 
+<style>
+  /* Стили для иконки просмотров */
+  .view-icon i {
+    margin-right: 4px;
+    color: inherit;
+  }
+</style>
+
 </head>
 
 <body>
@@ -49,8 +58,35 @@
           <h5 class="mt-4">{{post.postname}}</h5>
         </a>
 
-        <p>{{post.content|slice:"0:100"}}...</p>
-        <p class="small text-primary">{{ post.time|date:"d E Y" }} </p>
+        <p>{{post.content|safe|slice:"0:100"}}...</p>
+        
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form mb-2" data-post-id="{{post.id}}">
+          {% csrf_token %}
+          <button class="btn btn-sm like-btn" type="submit"
+            style="border: none; background: transparent; font-size: 18px;"
+            title="{%if post|is_liked_by:user%}Убрать лайк{%else%}Поставить лайк{%endif%}">
+            <i class="fa fa-heart {% if post|is_liked_by:user %}text-danger{% else %}text-muted{% endif %}"></i>
+            <span class="likes-count">{{post.likes}}</span> лайков
+          </button>
+        </form>
+        {% else %}
+        <div class="mb-2" style="font-size: 18px; color: #6c757d;">
+          <i class="fa fa-heart text-muted"></i>
+          <span>{{post.likes}}</span> лайков
+        </div>
+        {% endif %}
+        
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <p class="small text-primary mb-0">{{ post.time|date:"d E Y" }} </p>
+            <p class="small text-muted mb-0">Автор: {{ post.user.username }}</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <p class="small text-muted mb-0"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}}</p>
+            <p class="small text-muted mb-0"><i class="fa fa-comment"></i> 0</p>
+          </div>
+        </div>
       </div>
     </div>
     {% endfor %}
@@ -62,7 +98,31 @@
 
   <section class="blog-posts">
     <div class="container">
-      <h3 class="mb-2" style="color: rgb(227, 73, 73); font-size: 30px; font-weight: bold;">Последние посты</h3>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0" style="color: rgb(227, 73, 73); font-size: 30px; font-weight: bold;">Посты</h3>
+        
+        <!-- Фильтры и сортировка -->
+        <div class="d-flex gap-3">
+          <!-- Фильтр по категории -->
+          <select class="form-select" id="categoryFilter">
+            <option value="">Все категории</option>
+            {% for category in categories %}
+            <option value="{{category.id}}" {% if current_category == category.id|stringformat:"s" %}selected{% endif %}>
+              {{category.name}}
+            </option>
+            {% endfor %}
+          </select>
+          
+          
+          <!-- Сортировка -->
+          <select class="form-select" id="sortBy">
+            <option value="newest" {% if current_sort == "newest" %}selected{% endif %}>Новейшие</option>
+            <option value="likes" {% if current_sort == "likes" %}selected{% endif %}>По лайкам</option>
+            <option value="views" {% if current_sort == "views" %}selected{% endif %}>По просмотрам</option>
+            <option value="comments" {% if current_sort == "comments" %}selected{% endif %}>По комментариям</option>
+          </select>
+        </div>
+      </div>
       <hr>
       <div class=" row">
         <div class="col-lg-8">
@@ -75,18 +135,38 @@
                 <div class="px-3 py-5 shadow">
                   <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark mb-3">
                     <span class="text-white bg-info text-center rounded-3 mt-5"
-                      style="padding: 8px;">{{post.category}}</span>
+                      style="padding: 8px;">{{post.get_category_name}}</span>
                     <h5 class="mt-4">{{post.postname}}</h5>
                   </a>
-                  <form method="post" action="{% url 'increaselikes' post.id %}">
+                  
+                  {% if user.is_authenticated %}
+                  <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
                     {% csrf_token %}
-                    <button class="float-right small" type="submit"
-                      style="border: none; background: transparent; font-size: 25px;"><i
-                        class="fa fa-heart text-danger"></i></button>
+                    <button class="float-right small like-btn" type="submit"
+                      style="border: none; background: transparent; font-size: 20px;"
+                      title="{%if post|is_liked_by:user%}Убрать лайк{%else%}Поставить лайк{%endif%}">
+                      <i class="fa fa-heart {% if post|is_liked_by:user %}text-danger{% else %}text-muted{% endif %}"></i>
+                      <span class="likes-count">{{post.likes}}</span>
+                    </button>
                   </form>
+                  {% else %}
+                  <div class="float-right small" style="font-size: 20px; color: #6c757d;">
+                    <i class="fa fa-heart text-muted"></i>
+                    <span>{{post.likes}}</span>
+                  </div>
+                  {% endif %}
 
-                  <p class="mt-2">{{post.content|slice:"0:100"}}...</p>
-                  <p class="small text-primary">{{post.time}} </p>
+                  <p class="mt-2">{{post.content|safe|slice:"0:100"}}...</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <p class="small text-primary mb-0">{{post.time}} </p>
+                      <p class="small text-muted mb-0">Автор: {{ post.user.username }}</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                      <p class="small text-muted mb-0"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</p>
+                      <p class="small text-muted mb-0"><i class="fa fa-comment"></i> 0 комментариев</p>
+                    </div>
+                  </div>
                 </div>
               </div>
               {% endfor %}
@@ -158,6 +238,141 @@
         t.style.color = '#fff';
       }
     }
+
+    // Функция для показа уведомлений
+    function showNotification(message, type = 'info') {
+        // Удаляем старые уведомления
+        $('.notification').remove();
+        
+        // Определяем цвет в зависимости от типа
+        var bgClass = type === 'success' ? 'alert-success' : 'alert-info';
+        
+        // Создаем уведомление
+        var notification = $('<div class="alert ' + bgClass + ' alert-dismissible fade show notification" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+            message + 
+            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+            '</div>');
+        
+        // Добавляем в body
+        $('body').append(notification);
+        
+        // Автоматически удаляем через 3 секунды
+        setTimeout(function() {
+            notification.alert('close');
+        }, 3000);
+    }
+    
+    // Функция для применения фильтров
+    function applyFilters() {
+        console.log('applyFilters() called');
+        
+        const categorySelect = document.getElementById('categoryFilter');
+        const sortSelect = document.getElementById('sortBy');
+        
+        if (!categorySelect || !sortSelect) {
+            console.error('Filter elements not found');
+            return;
+        }
+        
+        const category = categorySelect.value;
+        const sort = sortSelect.value;
+        
+        console.log('Category:', category);
+        console.log('Sort:', sort);
+        
+        const url = new URL(window.location);
+        
+        if (category && category !== '') {
+            url.searchParams.set('category', category);
+            console.log('Setting category parameter:', category);
+        } else {
+            url.searchParams.delete('category');
+            console.log('Removing category parameter');
+        }
+        
+        if (sort && sort !== 'newest') {
+            url.searchParams.set('sort', sort);
+            console.log('Setting sort parameter:', sort);
+        } else {
+            url.searchParams.delete('sort');
+            console.log('Removing sort parameter');
+        }
+        
+        console.log('New URL:', url.toString());
+        window.location.href = url.toString();
+    }
+    
+    // AJAX для лайков
+    $(document).ready(function() {
+        console.log('jQuery загружен, версия:', $.fn.jquery);
+        console.log('Найдено форм лайков:', $('.like-form').length);
+        
+        // Добавляем обработчики событий для фильтров
+        $('#categoryFilter').on('change', function() {
+            console.log('Category filter changed');
+            applyFilters();
+        });
+        
+        $('#sortBy').on('change', function() {
+            console.log('Sort filter changed');
+            applyFilters();
+        });
+        
+        // Обработчик для всех форм лайков
+        $(document).on('submit', '.like-form', function(e) {
+            e.preventDefault();
+            console.log('Клик по лайку!');
+            
+            var form = $(this);
+            var postId = form.data('post-id');
+            var button = form.find('.like-btn');
+            var icon = button.find('i');
+            var counter = button.find('.likes-count');
+            
+            console.log('Post ID:', postId);
+            console.log('URL:', form.attr('action'));
+            
+            // Отключаем кнопку на время запроса
+            button.prop('disabled', true);
+            
+            $.ajax({
+                url: form.attr('action'),
+                type: 'POST',
+                data: form.serialize(),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                success: function(response) {
+                    console.log('AJAX успех:', response);
+                    
+                    // Обновляем счетчик
+                    counter.text(response.likes_count);
+                    
+                    // Обновляем стиль иконки
+                    if (response.is_liked) {
+                        icon.removeClass('text-muted').addClass('text-danger');
+                        button.attr('title', 'Убрать лайк');
+                    } else {
+                        icon.removeClass('text-danger').addClass('text-muted');
+                        button.attr('title', 'Поставить лайк');
+                    }
+                    
+                    // Показываем уведомление
+                    showNotification(response.message, response.is_liked ? 'success' : 'info');
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX ошибка:', xhr, status, error);
+                    alert('Ошибка при обработке лайка: ' + error);
+                },
+                complete: function() {
+                    // Включаем кнопку обратно
+                    button.prop('disabled', false);
+                }
+            });
+            
+            return false; // Дополнительная защита
+        });
+    });
 
   </script>
 

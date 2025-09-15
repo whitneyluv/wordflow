@@ -16,6 +16,9 @@
 
   <!-- Bootstrap core CSS -->
   <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+  
+  <!-- CKEditor Media -->
+  {{ form.media }}
 
 
   <!-- Additional CSS Files -->
@@ -122,16 +125,44 @@
       <form action="{% url 'editpost' post.id %}" class="p-5 shadow" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <h5 class="mb-5">Обновить пост</h5>
-        <label for="" class="form-label">Заголовок</label>
-        <div class="input-group">
-          <input type="text" class="form-control" name="postname" value="{{post.postname}}" required>
+        
+        <div class="mb-3">
+          <label for="{{ form.postname.id_for_label }}" class="form-label">{{ form.postname.label }}</label>
+          {{ form.postname }}
         </div>
-        <label for="" class="form-label">Текст</label>
-        <textarea class="form-control" name="content" required>{{post.content}}</textarea>
-        <label for="" class="form-label">Категория</label>
-        <input type="text" class="form-control" name="category" value="{{post.category}}" required>
-          <label for="" class="form-label">Обновить изображение</label>
-        <input type="file" class="form-control" name="image">
+        
+        <div class="mb-3">
+          <label for="{{ form.content.id_for_label }}" class="form-label">{{ form.content.label }}</label>
+          {{ form.content }}
+        </div>
+        
+        <div class="mb-3">
+          <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
+          {{ form.category }}
+        </div>
+        
+        <div class="mb-3">
+          <label for="{{ form.image.id_for_label }}" class="form-label">{{ form.image.label }}</label>
+          {{ form.image }}
+        </div>
+        
+        {% if user == post.user or user.is_superuser %}
+        <div class="mb-3">
+          <label class="form-label">{{ form.editors.label }}</label>
+          <div class="row">
+            {% for choice in form.editors %}
+            <div class="col-md-4 mb-2">
+              {{ choice.tag }}
+              <label for="{{ choice.id_for_label }}" class="form-check-label ms-2">
+                {{ choice.choice_label }}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+          <small class="form-text text-muted">Выберите пользователей, которые смогут редактировать этот пост</small>
+        </div>
+        {% endif %}
+        
         <button class="btn">Обновить пост</button>
         <br>
         {% for message in messages %}
@@ -143,6 +174,7 @@
   </div>
 
   {% include 'footer.html' %}
+
 
 </body>
 

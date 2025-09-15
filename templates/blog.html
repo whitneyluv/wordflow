@@ -1,4 +1,5 @@
 {% load static %}
+{% load post_extras %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -22,10 +23,18 @@
 
   <!-- Additional CSS Files -->
   <link rel="stylesheet" href="{% static 'assets/css/fontawesome.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <link rel="stylesheet" href="{% static 'assets/css/templatemo-stand-blog.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/owl.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/styles.css' %}">
 
+<style>
+  /* Стили для иконки просмотров */
+  .view-icon i {
+    margin-right: 4px;
+    color: inherit;
+  }
+</style>
 
 </head>
 
@@ -49,8 +58,15 @@
             <h5 class="mt-4">{{post.postname}}</h5>
           </a>
 
-          <p>{{post.content|slice:"0:100"}}...</p>
-          <p class="small text-primary">{{post.time}} </p>
+          <p>{{post.content|safe|slice:"0:100"}}...</p>
+          <div class="d-flex justify-content-between align-items-center">
+            <p class="small text-primary mb-0">{{post.time}} </p>
+            <div class="d-flex align-items-center gap-3">
+              <p class="small text-muted mb-0"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</p>
+              <p class="small text-danger mb-0"><i class="fa fa-heart"></i> {{post.likes}} лайков</p>
+              <p class="small text-muted mb-0"><i class="fa fa-comment"></i> 0 комментариев</p>
+            </div>
+          </div>
         </div>
       </div>
       {% endfor %}
@@ -77,19 +93,30 @@
                   </div>
                   <div class="down-content">
                     <span>{{post.category}}</span>
-                    <form method="post" action="{% url 'increaselikes' post.id %}">
+                    {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
                       {% csrf_token %}
-                      <button class="float-right btn btn-outline-danger" type="submit ">
-                        {{post.likes}} <i class="fa fa-heart"></i></button>
+                      <button class="float-right btn like-btn" type="submit"
+                        style="border: 1px solid #dc3545; background: {% if post|is_liked_by:user %}#dc3545{% else %}transparent{% endif %}; color: {% if post|is_liked_by:user %}white{% else %}#dc3545{% endif %};"
+                        title="{%if post|is_liked_by:user%}Убрать лайк{%else%}Поставить лайк{%endif%}">
+                        <span class="likes-count">{{post.likes}}</span> <i class="fa fa-heart"></i>
+                      </button>
                     </form>
+                    {% else %}
+                    <div class="float-right btn" style="border: 1px solid #6c757d; background: transparent; color: #6c757d; cursor: not-allowed;">
+                      {{post.likes}} <i class="fa fa-heart"></i>
+                    </div>
+                    {% endif %}
                     <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark">
                       <h5>{{post.postname}}</h5>
                     </a>
                     <ul class="post-info">
                       <li><a href="#">{{post.user}}</a></li>
                       <li><a href="#">{{post.time}}</a></li>
+                      <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</a></li>
+                      <li><a href="#"><i class="fa fa-comment"></i> 0 комментариев</a></li>
                     </ul>
-                    <p style="max-width: 100%;">{{post.content|slice:"0:500"}}....</p>
+                    <div style="max-width: 100%;">{{post.content|safe|slice:"0:500"}}....</div>
                   </div>
                 </div>
               </div>
@@ -129,6 +156,82 @@
         t.style.color = '#fff';
       }
     }
+    
+    // Функция для показа уведомлений
+    function showNotification(message, type = 'info') {
+        // Удаляем старые уведомления
+        $('.notification').remove();
+        
+        // Определяем цвет в зависимости от типа
+        var bgClass = type === 'success' ? 'alert-success' : 'alert-info';
+        
+        // Создаем уведомление
+        var notification = $('<div class="alert ' + bgClass + ' alert-dismissible fade show notification" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+            message + 
+            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+            '</div>');
+        
+        // Добавляем в body
+        $('body').append(notification);
+        
+        // Автоматически удаляем через 3 секунды
+        setTimeout(function() {
+            notification.alert('close');
+        }, 3000);
+    }
+    
+    // AJAX для лайков
+    $(document).ready(function() {
+        $('.like-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            var form = $(this);
+            var postId = form.data('post-id');
+            var button = form.find('.like-btn');
+            var counter = button.find('.likes-count');
+            
+            // Отключаем кнопку на время запроса
+            button.prop('disabled', true);
+            
+            $.ajax({
+                url: form.attr('action'),
+                type: 'POST',
+                data: form.serialize(),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                success: function(response) {
+                    // Обновляем счетчик
+                    counter.text(response.likes_count);
+                    
+                    // Обновляем стиль кнопки
+                    if (response.is_liked) {
+                        button.css({
+                            'background': '#dc3545',
+                            'color': 'white'
+                        });
+                        button.attr('title', 'Убрать лайк');
+                    } else {
+                        button.css({
+                            'background': 'transparent',
+                            'color': '#dc3545'
+                        });
+                        button.attr('title', 'Поставить лайк');
+                    }
+                    
+                    // Показываем уведомление
+                    showNotification(response.message, response.is_liked ? 'success' : 'info');
+                },
+                error: function() {
+                    alert('Ошибка при обработке лайка');
+                },
+                complete: function() {
+                    // Включаем кнопку обратно
+                    button.prop('disabled', false);
+                }
+            });
+        });
+    });
   </script>
 
 </body>

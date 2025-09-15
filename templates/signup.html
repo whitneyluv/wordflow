@@ -90,26 +90,44 @@
             <form action="{% url 'signup' %}" class="p-5 shadow" method="post">
                 {% csrf_token %}
                 <h3>Регистрация</h3>
-                <br>
-                {% for message in messages %}
-                <p class="text-danger text-center">{{message}}</p>
-                {% endfor %}
-                <label for="" class="form-label">Логин</label>
-                <div class="input-group mt-1">
-                    <span class="input-group-text">@</span>
-                    <input type="text" class="form-control" name="username" required>
-                </div>
-                <label for="" class="form-label mt-3">Почта</label>
-                <input type="email" class="form-control" name="email" required>
-                <label for="" class="form-label mt-3">Пароль</label>
-                <input type="password" class="form-control" name="password" required>
-                <label for="" class="form-label mt-3">Введите пароль еще раз</label>
-                <input type="password" class="form-control" name="password2" required>
+                <div class="mb-3">
+          <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+          {{ form.username }}
+          {% if form.username.help_text %}
+            <small class="form-text text-muted">{{ form.username.help_text }}</small>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }}</label>
+          {{ form.first_name }}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }}</label>
+          {{ form.last_name }}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+          {{ form.email }}
+          <small class="form-text text-muted">Используйте email с доменами: gmail.com, mail.ru, yandex.ru и др.</small>
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.password1.id_for_label }}" class="form-label">{{ form.password1.label }}</label>
+          {{ form.password1 }}
+          {% if form.password1.help_text %}
+            <small class="form-text text-muted">{{ form.password1.help_text }}</small>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
+          {{ form.password2 }}
+          {% if form.password2.help_text %}
+            <small class="form-text text-muted">{{ form.password2.help_text }}</small>
+          {% endif %}
+        </div>
                 <button class="btn">Регистрация</button>
                 <p class="para">У вас уже есть аккаунт?
                     <a href="{% url 'signin' %}"> Вход</a>
                 </p>
-
 
             </form>
 

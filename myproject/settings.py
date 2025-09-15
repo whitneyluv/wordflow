@@ -28,6 +28,23 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# Login URLs
+LOGIN_URL = '/signin/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'workflow304@inbox.ru'
+EMAIL_HOST_PASSWORD = ''
+DEFAULT_FROM_EMAIL = 'WordFlow <noreply@wordflow.com>'
+
+# Account activation settings
+ACCOUNT_ACTIVATION_DAYS = 7
+
 
 # Application definition
 
@@ -38,7 +55,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "wordflow"
+    "wordflow",
+    'ckeditor',
+    'ckeditor_uploader',
 ]
 
 MIDDLEWARE = [
@@ -119,3 +138,48 @@ MEDIA_ROOT = MEDIA_DIR
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Настройки для системы просмотров
+# Время жизни сессии для просмотров анонимных пользователей (в секундах)
+ANONYMOUS_VIEW_SESSION_TIMEOUT = 86400  # 24 часа
+
+# Настройки сессий
+SESSION_COOKIE_AGE = 86400  # 24 часа
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# CKEditor Configuration
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_IMAGE_BACKEND = "pillow"
+CKEDITOR_JQUERY_URL = 'https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js'
+
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'full',
+        'height': 300,
+        'width': '100%',
+        'language': 'ru',
+        'toolbar_Custom': [
+            ['Bold', 'Italic', 'Underline'],
+            ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'],
+            ['Link', 'Unlink'],
+            ['RemoveFormat', 'Source']
+        ]
+    },
+    'basic': {
+        'toolbar': [
+            ['Bold', 'Italic', 'Underline'],
+            ['NumberedList', 'BulletedList'],
+            ['Link', 'Unlink'],
+            ['Undo', 'Redo']
+        ],
+        'height': 300,
+        'width': '100%',
+        'language': 'ru',
+        'removePlugins': 'elementspath',
+        'resize_enabled': False,
+    },
+    'awesome_ckeditor': {
+        'toolbar': 'Basic',
+    },
+}

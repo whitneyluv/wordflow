@@ -1,4 +1,5 @@
 {% load static %}
+{% load post_extras %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -19,8 +20,18 @@
 
     <!-- Additional CSS Files -->
     <link rel="stylesheet" href="{% static 'assets/css/fontawesome.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="{% static 'assets/css/templatemo-stand-blog.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/owl.css' %}">
+    
+    <style>
+      /* Стили для иконки просмотров */
+      .view-icon i {
+        margin-right: 4px;
+        color: inherit;
+      }
+    </style>
+    
 <!--
 
 TemplateMo 551 Stand Blog
@@ -49,12 +60,42 @@ https://templatemo.com/tm-551-stand-blog
                       <span>{{post.category}}</span>
                       <a><h4>{{post.postname}}</h4></a>
                       <ul class="post-info">
-                        <li><a href="#">{{post.user}}</a></li>
+                        <li><a href="{% url 'profile' post.user.id %}">Автор: {{post.user.username}}</a></li>
                         <li><a href="#">{{post.time}}</a></li>
                         <li><a href="#">{{total_comments}} комментариев</a></li>
+                        <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</a></li>
                       </ul>
-                      <p>{{post.content}}</p>
-                      <div class="post-options">
+                      <div>{{post.content|safe}}</div>
+                      <div class="post-options d-flex justify-content-between align-items-center mt-3">
+                        <div class="d-flex align-items-center gap-3">
+                          {% if user.is_authenticated %}
+                          <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
+                            {% csrf_token %}
+                            <button class="btn like-btn" type="submit"
+                              style="border: 1px solid #dc3545; background: {% if post|is_liked_by:user %}#dc3545{% else %}transparent{% endif %}; color: {% if post|is_liked_by:user %}white{% else %}#dc3545{% endif %}; padding: 8px 16px;"
+                              title="{%if post|is_liked_by:user%}Убрать лайк{%else%}Поставить лайк{%endif%}">
+                              <i class="fa fa-heart"></i> <span class="likes-count">{{post.likes}}</span>
+                            </button>
+                          </form>
+                          {% else %}
+                          <div class="btn" style="border: 1px solid #6c757d; background: transparent; color: #6c757d; cursor: not-allowed; padding: 8px 16px;">
+                            <i class="fa fa-heart"></i> {{post.likes}}
+                          </div>
+                          {% endif %}
+                          
+                          {% if user.is_authenticated %}
+                            {% if post.user == user or user.is_superuser %}
+                            <a href="{% url 'manage_editors' post.id %}" class="btn btn-outline-secondary btn-sm">
+                              <i class="fas fa-users"></i> Редакторы
+                            </a>
+                            {% endif %}
+                          {% endif %}
+                        </div>
+                        
+                        <div class="small text-muted">
+                          <span class="me-3"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</span>
+                          <span><i class="fa fa-comment"></i> {{total_comments}} комментариев</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -70,7 +111,7 @@ https://templatemo.com/tm-551-stand-blog
                         <li style="display: block;">
                           <div class="ps-3">
                             <h5>{{comment.user}}<span class="small text-black-50 px-5 text-danger">{{comment.time}}</span>
-                              {% if post.user == user or comment.user == post.user%}
+                              {% if comment|can_delete_comment:user %}
                               <a href="{% url 'deletecomment' comment.id %}" class="small text-danger float-right fw-bold pt-1">Удалить</a>
                               {% endif %}
                             </h5>
@@ -133,7 +174,7 @@ https://templatemo.com/tm-551-stand-blog
                     </div>
                   </div>
                 </div>
-                
+
               </div>
             </div>
           </div>
@@ -141,7 +182,7 @@ https://templatemo.com/tm-551-stand-blog
       </div>
     </section>
 
-    
+
    {% include "footer.html" %}
 
 
@@ -158,7 +199,7 @@ https://templatemo.com/tm-551-stand-blog
     <script src="{% static 'assets/js/accordions.js' %}"></script>
 
 
-    <script language = "text/Javascript"> 
+    <script language = "text/Javascript">
       cleared[0] = cleared[1] = cleared[2] = 0; //set a cleared flag for each field
       function clearField(t){                   //declaring the array outside of the
       if(! cleared[t.id]){                      // function makes it static and global
@@ -167,6 +208,82 @@ https://templatemo.com/tm-551-stand-blog
           t.style.color='#fff';
           }
       }
+      
+      // Функция для показа уведомлений
+      function showNotification(message, type = 'info') {
+          // Удаляем старые уведомления
+          $('.notification').remove();
+          
+          // Определяем цвет в зависимости от типа
+          var bgClass = type === 'success' ? 'alert-success' : 'alert-info';
+          
+          // Создаем уведомление
+          var notification = $('<div class="alert ' + bgClass + ' alert-dismissible fade show notification" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+              message + 
+              '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+              '</div>');
+          
+          // Добавляем в body
+          $('body').append(notification);
+          
+          // Автоматически удаляем через 3 секунды
+          setTimeout(function() {
+              notification.alert('close');
+          }, 3000);
+      }
+      
+      // AJAX для лайков
+      $(document).ready(function() {
+          $('.like-form').on('submit', function(e) {
+              e.preventDefault();
+              
+              var form = $(this);
+              var postId = form.data('post-id');
+              var button = form.find('.like-btn');
+              var counter = button.find('.likes-count');
+              
+              // Отключаем кнопку на время запроса
+              button.prop('disabled', true);
+              
+              $.ajax({
+                  url: form.attr('action'),
+                  type: 'POST',
+                  data: form.serialize(),
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest',
+                  },
+                  success: function(response) {
+                      // Обновляем счетчик
+                      counter.text(response.likes_count);
+                      
+                      // Обновляем стиль кнопки
+                      if (response.is_liked) {
+                          button.css({
+                              'background': '#dc3545',
+                              'color': 'white'
+                          });
+                          button.attr('title', 'Убрать лайк');
+                      } else {
+                          button.css({
+                              'background': 'transparent',
+                              'color': '#dc3545'
+                          });
+                          button.attr('title', 'Поставить лайк');
+                      }
+                      
+                      // Показываем уведомление
+                      showNotification(response.message, response.is_liked ? 'success' : 'info');
+                  },
+                  error: function() {
+                      alert('Ошибка при обработке лайка');
+                  },
+                  complete: function() {
+                      // Включаем кнопку обратно
+                      button.prop('disabled', false);
+                  }
+              });
+          });
+      });
     </script>
 
 
