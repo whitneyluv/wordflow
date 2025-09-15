@@ -377,7 +377,7 @@
             <div class="d-flex align-items-center gap-3">
               <p class="small text-muted mb-0"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</p>
               <p class="small text-danger mb-0"><i class="fa fa-heart"></i> {{post.likes}} лайков</p>
-              <p class="small text-muted mb-0"><i class="fa fa-comment"></i> 0 комментариев</p>
+              <p class="small text-muted mb-0"><i class="fa fa-comment"></i> {{post|comment_count}} комментариев</p>
             </div>
           </div>
         </div>
@@ -427,7 +427,7 @@
                       <li><a href="#">{{post.user}}</a></li>
                       <li><a href="#">{{post.time}}</a></li>
                       <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</a></li>
-                      <li><a href="#"><i class="fa fa-comment"></i> 0 комментариев</a></li>
+                      <li><a href="#"><i class="fa fa-comment"></i> {{post|comment_count}} комментариев</a></li>
                     </ul>
                     <div style="max-width: 100%;">{{post.content|safe|slice:"0:500"}}....</div>
                   </div>

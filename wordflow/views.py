@@ -421,8 +421,8 @@ def post(request, id):
         'post': post,
         'recent_posts': Post.objects.all().order_by("-id")[:5],
         'media_url': settings.MEDIA_URL,
-        'comments': Comment.objects.filter(post_id=post.id),
-        'total_comments': Comment.objects.filter(post_id=post.id).count()
+        'comments': Comment.objects.filter(post=post),
+        'total_comments': Comment.objects.filter(post=post).count()
     })
 
 

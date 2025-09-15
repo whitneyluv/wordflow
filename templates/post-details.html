@@ -62,7 +62,7 @@ https://templatemo.com/tm-551-stand-blog
                       <ul class="post-info">
                         <li><a href="{% url 'profile' post.user.id %}">Автор: {{post.user.username}}</a></li>
                         <li><a href="#">{{post.time}}</a></li>
-                        <li><a href="#">{{total_comments}} комментариев</a></li>
+                        <li><a href="#">{{post|comment_count}} комментариев</a></li>
                         <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</a></li>
                       </ul>
                       <div>{{post.content|safe}}</div>
@@ -94,7 +94,7 @@ https://templatemo.com/tm-551-stand-blog
                         
                         <div class="small text-muted">
                           <span class="me-3"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}} просмотров</span>
-                          <span><i class="fa fa-comment"></i> {{total_comments}} комментариев</span>
+                          <span><i class="fa fa-comment"></i> {{post|comment_count}} комментариев</span>
                         </div>
                       </div>
                     </div>
@@ -103,7 +103,7 @@ https://templatemo.com/tm-551-stand-blog
                 <div class="col-lg-12">
                   <div class="sidebar-item comments">
                     <div class="sidebar-heading">
-                      <h2 class="text-dark-emphasis">{{total_comments}} комментариев</h2>
+                      <h2 class="text-dark-emphasis">{{post|comment_count}} комментариев</h2>
                     </div>
                     <div class="content">
                       <ul>
