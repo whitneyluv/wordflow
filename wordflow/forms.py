@@ -104,6 +104,11 @@ class CustomUserCreationForm(UserCreationForm):
     def clean_email(self):
         email = self.cleaned_data.get('email')
         if email:
+            # Проверка базового формата email
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                raise ValidationError('Пожалуйста, укажите правильный email адрес (например: example@gmail.com)')
+            
             # Список разрешенных доменов
             allowed_domains = [
                 'gmail.com', 'mail.ru', 'yandex.ru', 'yandex.com', 'yahoo.com',

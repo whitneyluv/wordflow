@@ -187,6 +187,11 @@
             margin-right: 4px;
             color: inherit;
         }
+
+        /* Стиль для постов, которые можно редактировать */
+        .border-left-info {
+            border-left: 4px solid #17a2b8 !important;
+        }
     </style>
 </head>
 
@@ -286,20 +291,29 @@
 
                                         <div class="row row-cols-lg-2 row-cols-1">
                                             {% for post in posts%}
-                                            {% if post.user_id == user.id %}
                                             <div class="col col-lg-6 col-12 mb-2">
                                                 <img src="{{media_url}}{{post.image}}" alt="" height="300px"
                                                     width="100%">
-                                                <div class="px-3 py-2 shadow">
-                                                    <h5>{{post.postname}}</h5>
+                                                <div class="px-3 py-2 shadow{% if post in editable_posts %} border-left-info{% endif %}">
+                                                    <h5>{{post.postname}}
+                                                        {% if post in editable_posts %}
+                                                        <small class="text-info">(можно редактировать)</small>
+                                                        {% endif %}
+                                                    </h5>
+                                                    {% if user == profile_user %}
                                                     <a href="{% url 'deletepost' post.id %}"><button
                                                             class="ms-2 float-right small" type="submit"
                                                             style="border:2px solid rgb(252, 63, 42); border-radius: 5px; background-color: rgb(246, 148, 141);">Удалить</button></a>
+                                                    {% endif %}
+                                                    {% if user == profile_user or post in editable_posts %}
                                                     <a href="{% url 'editpost' post.id %}"><button
                                                             class="float-right small" type="submit"
-                                                            style="border:2px solid rgb(64, 108, 251); border-radius: 5px; background-color: rgb(141, 169, 246);">Обновить</button></a>
+                                                            style="border:2px solid rgb(64, 108, 251); border-radius: 5px; background-color: rgb(141, 169, 246);">
+                                                            {% if post in editable_posts and user != profile_user %}Редактировать{% else %}Обновить{% endif %}
+                                                    </button></a>
+                                                    {% endif %}
                                                     <span
-                                                        class="text-white bg-success rounded-3 px-2 rounded-2">{{post.category}}</span>
+                                                        class="text-white {% if post in editable_posts %}bg-info{% else %}bg-success{% endif %} rounded-3 px-2 rounded-2">{{post.category}}</span>
                                                     <p>{{post.content|safe|slice:"0:20"}}...</p>
                                                     <div class="d-flex justify-content-between align-items-center">
                                                         <div>
@@ -314,9 +328,42 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            {% endif %}
                                             {% endfor %}
                                         </div>
+
+                                        {% if editable_posts %}
+                                        <p class="small fw-bold pt-3 text-dark">Посты для редактирования</p>
+                                        <hr>
+
+                                        <div class="row row-cols-lg-2 row-cols-1">
+                                            {% for post in editable_posts %}
+                                            <div class="col col-lg-6 col-12 mb-2">
+                                                <img src="{{media_url}}{{post.image}}" alt="" height="300px"
+                                                    width="100%">
+                                                <div class="px-3 py-2 shadow" style="border-left: 4px solid #007bff;">
+                                                    <h5>{{post.postname}} <small class="text-muted">(редактор)</small></h5>
+                                                    <a href="{% url 'editpost' post.id %}"><button
+                                                            class="float-right small" type="submit"
+                                                            style="border:2px solid rgb(64, 108, 251); border-radius: 5px; background-color: rgb(141, 169, 246);">Редактировать</button></a>
+                                                    <span
+                                                        class="text-white bg-info rounded-3 px-2 rounded-2">{{post.category}}</span>
+                                                    <p>{{post.content|safe|slice:"0:20"}}...</p>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <p class="small text-primary mb-0">{{post.time}}</p>
+                                                            <p class="small text-muted mb-0">Автор: {{post.user.username}}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-danger small me-2">❤ {{post.likes}}</span>
+                                                            <span class="text-muted small me-2"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views}}</span>
+                                                            <span class="text-muted small"><i class="fa fa-comment"></i> 0</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>

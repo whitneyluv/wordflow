@@ -8,6 +8,113 @@
 </div>
 <!-- ***** Preloader End ***** -->
 
+<style>
+/* Плавные переходы между страницами */
+#preloader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999999;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.jumper {
+  display: flex;
+  gap: 10px;
+}
+
+.jumper > div {
+  width: 15px;
+  height: 15px;
+  background: white;
+  border-radius: 50%;
+  animation: bounce 1.4s ease-in-out infinite both;
+}
+
+.jumper > div:nth-child(1) { animation-delay: -0.32s; }
+.jumper > div:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { 
+    transform: scale(0);
+  } 40% { 
+    transform: scale(1.0);
+  }
+}
+
+/* Анимация появления страницы */
+.page-transition {
+  opacity: 0;
+  transform: translateY(30px);
+  animation: pageEnter 0.6s ease-out forwards;
+}
+
+@keyframes pageEnter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Стили для навигации */
+.navbar {
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+}
+
+.nav-link {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(45deg, #007bff, #20c997);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.nav-link:hover::before {
+  width: 100%;
+}
+
+.nav-link:hover {
+  color: #007bff !important;
+  transform: translateY(-2px);
+}
+
+/* Анимация для сообщений */
+.alert {
+  animation: slideDown 0.3s ease-out;
+  border: none;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+</style>
+
 <!-- Header -->
 <header class="">
   <nav class="navbar navbar-expand-lg bg-white">

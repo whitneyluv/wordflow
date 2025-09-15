@@ -12,18 +12,21 @@ from .models import *
 def index(request):
     from .models import Category, Comment
     from django.db.models import Count
+    from django.core.paginator import Paginator
     
     # Получаем параметры сортировки и фильтрации
     sort_by = request.GET.get('sort', 'newest')
     category_filter = request.GET.get('category')
+    page_number = request.GET.get('page', 1)
     
     # Debug: Print all GET parameters
     print(f"DEBUG INDEX: All GET parameters: {dict(request.GET)}")
     print(f"DEBUG INDEX: sort_by = '{sort_by}'")
     print(f"DEBUG INDEX: category_filter = '{category_filter}'")
+    print(f"DEBUG INDEX: page_number = '{page_number}'")
     
     # Базовые запросы
-    user_posts = Post.objects.filter(user_id=request.user.id).order_by("id").reverse() if request.user.is_authenticated else Post.objects.none()
+    user_posts = Post.objects.filter(user_id=request.user.id).order_by("-id") if request.user.is_authenticated else Post.objects.none()
     
     # Основные посты с сортировкой
     main_posts = Post.objects.all()
@@ -57,13 +60,13 @@ def index(request):
     # Сортировка
     print(f"DEBUG INDEX: Applying sorting: {sort_by}")
     if sort_by == 'likes':
-        main_posts = main_posts.order_by('-likes')
+        main_posts = main_posts.order_by('-likes', '-id')
         print(f"DEBUG INDEX: Sorted by likes")
     elif sort_by == 'views':
-        main_posts = main_posts.order_by('-views')
+        main_posts = main_posts.order_by('-views', '-id')
         print(f"DEBUG INDEX: Sorted by views")
     elif sort_by == 'comments':
-        main_posts = main_posts.annotate(comment_count=Count('comment')).order_by('-comment_count')
+        main_posts = main_posts.annotate(comment_count=Count('comment')).order_by('-comment_count', '-id')
         print(f"DEBUG INDEX: Sorted by comments - found {main_posts.count()} posts")
     else:  # newest
         main_posts = main_posts.order_by('-id')
@@ -71,9 +74,14 @@ def index(request):
     
     print(f"DEBUG INDEX: Final posts count: {main_posts.count()}")
     
+    # Пагинация для основных постов
+    paginator = Paginator(main_posts, 6)  # 6 постов на страницу
+    page_obj = paginator.get_page(page_number)
+    
     return render(request, "index.html", {
-        'posts': user_posts,
-        'top_posts': main_posts[:7],  # Используем отсортированные посты
+        'posts': user_posts[:3],  # Показываем только 3 поста пользователя
+        'top_posts': page_obj,  # Используем пагинированные посты
+        'page_obj': page_obj,
         'recent_posts': Post.objects.all().order_by("-id")[:5],
         'categories': Category.objects.all(),
         'current_sort': sort_by,
@@ -150,10 +158,25 @@ def logout(request):
 
 
 def blog(request):
+    from django.core.paginator import Paginator
+    
+    # Получаем параметр страницы
+    page_number = request.GET.get('page', 1)
+    
+    # Посты пользователя (если авторизован)
+    user_posts = Post.objects.filter(user_id=request.user.id).order_by("-id") if request.user.is_authenticated else Post.objects.none()
+    
+    # Все посты для основного списка (самые новые сначала)
+    all_posts = Post.objects.all().order_by("-id")
+    
+    # Пагинация для всех постов
+    paginator = Paginator(all_posts, 5)  # 5 постов на страницу
+    page_obj = paginator.get_page(page_number)
+    
     return render(request, "blog.html", {
-        'posts': Post.objects.filter(user_id=request.user.id).order_by("id").reverse(),
-        'top_posts': Post.objects.all().order_by("-likes"),
-        'recent_posts': Post.objects.all().order_by("-id"),
+        'posts': user_posts[:3],  # Показываем только 3 поста пользователя
+        'recent_posts': page_obj,  # Используем пагинированные посты
+        'page_obj': page_obj,
         'user': request.user,
         'media_url': settings.MEDIA_URL
     })
@@ -197,9 +220,16 @@ def create(request):
 
 
 def profile(request, id):
+    profile_user = User.objects.get(id=id)
+    # Посты, которые пользователь создал
+    authored_posts = Post.objects.filter(user_id=id)
+    # Посты, которые пользователь может редактировать
+    editable_posts = Post.objects.filter(editors=profile_user)
+    
     return render(request, 'profile.html', {
-        'profile_user': User.objects.get(id=id),
-        'posts': Post.objects.filter(user_id=id),
+        'profile_user': profile_user,
+        'posts': authored_posts,
+        'editable_posts': editable_posts,
         'media_url': settings.MEDIA_URL,
     })
 
@@ -240,12 +270,15 @@ def manage_editors(request, post_id):
             try:
                 editor_user = User.objects.get(id=user_id)
                 if editor_user != post.user:  # Автор не может быть редактором самого себя
-                    PostEditor.objects.get_or_create(
+                    editor_obj, created = PostEditor.objects.get_or_create(
                         post=post, 
                         user=editor_user,
                         defaults={'assigned_by': request.user}
                     )
-                    messages.success(request, f"Пользователь {editor_user.username} назначен редактором")
+                    if created:
+                        messages.success(request, f"Пользователь {editor_user.username} назначен редактором")
+                    else:
+                        messages.info(request, f"Пользователь {editor_user.username} уже является редактором")
                 else:
                     messages.error(request, "Автор поста не может быть назначен редактором")
             except User.DoesNotExist:
@@ -293,7 +326,7 @@ def activate(request, uidb64, token):
 
 
 @login_required
-def assign_editor(request, post_id):
+def assign_editor_ajax(request, post_id):
     """AJAX назначение редактора"""
     if request.method == 'POST':
         post = get_object_or_404(Post, id=post_id)
@@ -448,7 +481,15 @@ def editpost(request, id):
                 # Обработка редакторов (только автор или админ может назначать)
                 if request.user == post.user or request.user.is_superuser:
                     editors = form.cleaned_data.get('editors', [])
-                    post.editors.set(editors)
+                    # Удаляем старых редакторов
+                    PostEditor.objects.filter(post=post).delete()
+                    # Добавляем новых редакторов
+                    for editor in editors:
+                        PostEditor.objects.create(
+                            post=post,
+                            user=editor,
+                            assigned_by=request.user
+                        )
                 
                 messages.success(request, "Пост успешно обновлен")
                 return redirect('profile', id=request.user.id)
@@ -526,7 +567,6 @@ def assign_editor(request, post_id):
         if editor_id:
             try:
                 editor = User.objects.get(id=editor_id)
-                from .models import PostEditor
                 editor_obj, created = PostEditor.objects.get_or_create(
                     post=post, 
                     user=editor,

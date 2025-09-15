@@ -34,6 +34,319 @@
     margin-right: 4px;
     color: inherit;
   }
+
+  /* Плавные переходы между страницами */
+  body {
+    opacity: 0;
+    animation: fadeIn 0.5s ease-in forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Красивые переходы и анимации для постов */
+  .blog-post {
+    transition: all 0.4s ease;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 30px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    position: relative;
+  }
+
+  .blog-post:hover {
+    transform: translateY(-15px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .blog-post::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(0, 123, 255, 0.05), rgba(220, 53, 69, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+  }
+
+  .blog-post:hover::before {
+    opacity: 1;
+  }
+
+  /* Стили для изображений постов */
+  .blog-thumb {
+    overflow: hidden;
+    position: relative;
+  }
+
+  .blog-thumb img {
+    transition: all 0.6s ease;
+    width: 100%;
+    object-fit: cover;
+  }
+
+  .blog-post:hover .blog-thumb img {
+    transform: scale(1.1) rotate(1deg);
+  }
+
+  /* Стили для контента постов */
+  .down-content {
+    padding: 30px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .down-content h5 {
+    transition: all 0.3s ease;
+    color: #2c3e50;
+    margin: 20px 0;
+    font-weight: 600;
+  }
+
+  .blog-post:hover .down-content h5 {
+    color: #007bff;
+    transform: translateX(10px);
+  }
+
+  /* Стили для категорий */
+  .down-content span {
+    background: linear-gradient(45deg, #17a2b8, #20c997);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 25px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: inline-block;
+    transition: all 0.3s ease;
+    box-shadow: 0 3px 10px rgba(23, 162, 184, 0.3);
+  }
+
+  .blog-post:hover .down-content span {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4);
+  }
+
+  /* Стили для информации о посте */
+  .post-info {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .post-info li {
+    transition: all 0.3s ease;
+  }
+
+  .post-info li a {
+    color: #6c757d;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    padding: 5px 10px;
+    border-radius: 15px;
+  }
+
+  .post-info li:hover a {
+    color: #007bff;
+    background: rgba(0, 123, 255, 0.1);
+    transform: translateY(-2px);
+  }
+
+  /* Анимация для кнопок лайков */
+  .like-btn {
+    transition: all 0.3s ease;
+    border-radius: 25px !important;
+    font-weight: 600;
+    padding: 8px 20px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #dc3545;
+    background: transparent;
+    color: #dc3545;
+  }
+
+  .like-btn.liked {
+    background: #dc3545;
+    color: white;
+  }
+
+  .like-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+  }
+
+  .like-btn:hover::before {
+    width: 100px;
+    height: 100px;
+  }
+
+  .like-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+  }
+
+  .like-btn:active {
+    transform: translateY(-1px) scale(0.98);
+  }
+
+  /* Стили для секции "Мои посты" */
+  .container .blog-post {
+    background: linear-gradient(135deg, #ffffff 0%, #f1f3f4 100%);
+    border: 1px solid #e9ecef;
+  }
+
+  .container .blog-post img {
+    border-radius: 15px 15px 0 0;
+    transition: all 0.3s ease;
+  }
+
+  .container .blog-post:hover img {
+    transform: scale(1.05);
+  }
+
+  .container .blog-post .shadow {
+    border-radius: 0 0 15px 15px;
+    transition: all 0.3s ease;
+  }
+
+  /* Анимация для заголовков */
+  h3, h5 {
+    transition: all 0.3s ease;
+  }
+
+  /* Стили для уведомлений */
+  .notification {
+    animation: slideInRight 0.3s ease-out;
+    border-radius: 15px;
+    border: none;
+    backdrop-filter: blur(10px);
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Анимация загрузки */
+  .loading {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: loading 1.5s infinite;
+  }
+
+  @keyframes loading {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  /* Hover эффекты для ссылок */
+  a {
+    transition: all 0.3s ease;
+  }
+
+  /* Стили для контейнера постов */
+  .blog-posts {
+    position: relative;
+    padding: 50px 0;
+  }
+
+  /* Стили для основного заголовка */
+  .blog-posts h3 {
+    background: linear-gradient(45deg, #e75c5c, #f093fb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 2px 10px rgba(231, 92, 92, 0.3);
+    animation: titlePulse 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes titlePulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.02); }
+  }
+
+  /* Анимация выхода со страницы */
+  .page-exit {
+    opacity: 0;
+    transform: translateY(-30px);
+    transition: all 0.3s ease-out;
+  }
+
+  /* Стили для пагинации */
+  .pagination {
+    margin-top: 30px;
+  }
+
+  .page-link {
+    color: #007bff;
+    border: 2px solid #e9ecef;
+    border-radius: 10px !important;
+    margin: 0 5px;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+    font-weight: 600;
+  }
+
+  .page-link:hover {
+    background: linear-gradient(45deg, #007bff, #20c997);
+    border-color: #007bff;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+  }
+
+  .page-item.active .page-link {
+    background: linear-gradient(45deg, #007bff, #20c997);
+    border-color: #007bff;
+    color: white;
+    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
+  }
+
+  .page-item:first-child .page-link,
+  .page-item:last-child .page-link {
+    border-radius: 50% !important;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
 </style>
 
 </head>
@@ -96,8 +409,8 @@
                     {% if user.is_authenticated %}
                     <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
                       {% csrf_token %}
-                      <button class="float-right btn like-btn" type="submit"
-                        style="border: 1px solid #dc3545; background: {% if post|is_liked_by:user %}#dc3545{% else %}transparent{% endif %}; color: {% if post|is_liked_by:user %}white{% else %}#dc3545{% endif %};"
+                      <button class="float-right btn like-btn {% if post|is_liked_by:user %}liked{% endif %}" type="submit"
+                        data-liked="{% if post|is_liked_by:user %}true{% else %}false{% endif %}"
                         title="{%if post|is_liked_by:user%}Убрать лайк{%else%}Поставить лайк{%endif%}">
                         <span class="likes-count">{{post.likes}}</span> <i class="fa fa-heart"></i>
                       </button>
@@ -121,6 +434,43 @@
                 </div>
               </div>
               {% endfor %}
+              
+              <!-- Пагинация -->
+              {% if page_obj.has_other_pages %}
+              <div class="col-lg-12">
+                <nav aria-label="Навигация по страницам" class="mt-4">
+                  <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                      <li class="page-item">
+                        <a class="page-link no-transition" href="?page={{page_obj.previous_page_number}}" aria-label="Предыдущая">
+                          <span aria-hidden="true">&laquo;</span>
+                        </a>
+                      </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                      {% if page_obj.number == num %}
+                        <li class="page-item active">
+                          <span class="page-link">{{num}}</span>
+                        </li>
+                      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                          <a class="page-link no-transition" href="?page={{num}}">{{num}}</a>
+                        </li>
+                      {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                      <li class="page-item">
+                        <a class="page-link no-transition" href="?page={{page_obj.next_page_number}}" aria-label="Следующая">
+                          <span aria-hidden="true">&raquo;</span>
+                        </a>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </nav>
+              </div>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -180,8 +530,29 @@
         }, 3000);
     }
     
-    // AJAX для лайков
+    // Плавные переходы между страницами
     $(document).ready(function() {
+        // Скрываем прелоадер после загрузки
+        $(window).on('load', function() {
+            setTimeout(function() {
+                $('#preloader').fadeOut(500);
+                $('body').addClass('page-transition');
+            }, 500);
+        });
+
+        // Добавляем анимацию при переходах по ссылкам
+        $('a:not([href^="#"]):not([target="_blank"]):not(.no-transition)').on('click', function(e) {
+            var href = $(this).attr('href');
+            if (href && href !== '#' && !href.startsWith('javascript:')) {
+                e.preventDefault();
+                $('body').removeClass('page-transition').addClass('page-exit');
+                setTimeout(function() {
+                    window.location.href = href;
+                }, 300);
+            }
+        });
+
+        // AJAX для лайков
         $('.like-form').on('submit', function(e) {
             e.preventDefault();
             
@@ -206,16 +577,10 @@
                     
                     // Обновляем стиль кнопки
                     if (response.is_liked) {
-                        button.css({
-                            'background': '#dc3545',
-                            'color': 'white'
-                        });
+                        button.addClass('liked');
                         button.attr('title', 'Убрать лайк');
                     } else {
-                        button.css({
-                            'background': 'transparent',
-                            'color': '#dc3545'
-                        });
+                        button.removeClass('liked');
                         button.attr('title', 'Поставить лайк');
                     }
                     
