@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages, auth
 from django.contrib.auth import authenticate, login
 from django.conf import settings
-from .models import Post, Comment, PostEditor
+from .models import Post, Comment, PostEditor, GlobalEditor
 from .models import *
 
 
@@ -30,59 +30,44 @@ def index(request):
     
     # Основные посты с сортировкой
     main_posts = Post.objects.all()
-    print(f"DEBUG INDEX: Total posts before filtering: {main_posts.count()}")
     
     # Фильтрация по категории
-    if category_filter:
-        print(f"DEBUG INDEX: Filtering posts by category: '{category_filter}'")
+    if category_filter and category_filter != '':
         if category_filter.isdigit():
-            print(f"DEBUG INDEX: Using category_obj_id filter with ID: {category_filter}")
+            # Фильтрация по ID категории
             main_posts = main_posts.filter(category_obj_id=category_filter)
-            print(f"DEBUG INDEX: Posts with category_obj_id={category_filter}: {main_posts.count()}")
         else:
-            print(f"DEBUG INDEX: Using category name filter with name: '{category_filter}'")
-            main_posts = main_posts.filter(category__icontains=category_filter)
-            print(f"DEBUG INDEX: Posts with category name containing '{category_filter}': {main_posts.count()}")
-        
-        print(f"DEBUG INDEX: Posts after filtering: {main_posts.count()}")
-        if main_posts.exists():
-            print(f"DEBUG INDEX: Filtered posts: {[p.postname for p in main_posts]}")
-            print(f"DEBUG INDEX: Post categories: {[(p.postname, p.category, p.category_obj_id) for p in main_posts]}")
-        else:
-            print("DEBUG INDEX: No posts found after filtering")
-            # Проверим все категории в базе
-            all_categories = Category.objects.all()
-            print(f"DEBUG INDEX: Available categories: {[(c.id, c.name) for c in all_categories]}")
-            # Проверим все посты и их категории
-            all_posts = Post.objects.all()
-            print(f"DEBUG INDEX: All posts with categories: {[(p.postname, p.category, p.category_obj_id) for p in all_posts]}")
+            # Фильтрация по названию - проверяем и новое и старое поле
+            from django.db.models import Q
+            main_posts = main_posts.filter(
+                Q(category_obj__name__icontains=category_filter) | 
+                Q(category__icontains=category_filter)
+            )
     
     # Сортировка
     print(f"DEBUG INDEX: Applying sorting: {sort_by}")
     if sort_by == 'likes':
-        main_posts = main_posts.order_by('-likes', '-id')
+        main_posts = main_posts.annotate(num_likes=Count('liked_by', distinct=True)).order_by('-num_likes', '-id')
         print(f"DEBUG INDEX: Sorted by likes")
     elif sort_by == 'views':
         main_posts = main_posts.order_by('-views', '-id')
         print(f"DEBUG INDEX: Sorted by views")
     elif sort_by == 'comments':
-        main_posts = main_posts.annotate(comment_count=Count('comment')).order_by('-comment_count', '-id')
+        main_posts = main_posts.annotate(num_comments=Count('comment', distinct=True)).order_by('-num_comments', '-id')
         print(f"DEBUG INDEX: Sorted by comments - found {main_posts.count()} posts")
     else:  # newest
         main_posts = main_posts.order_by('-id')
         print(f"DEBUG INDEX: Sorted by newest (default)")
     
     print(f"DEBUG INDEX: Final posts count: {main_posts.count()}")
-    
-    # Пагинация для основных постов
-    paginator = Paginator(main_posts, 6)  # 6 постов на страницу
+
+    paginator = Paginator(main_posts, 12)
     page_obj = paginator.get_page(page_number)
     
     return render(request, "index.html", {
-        'posts': user_posts[:3],  # Показываем только 3 поста пользователя
-        'top_posts': page_obj,  # Используем пагинированные посты
+        'posts': user_posts[:3],  
+        'top_posts': page_obj,
         'page_obj': page_obj,
-        'recent_posts': Post.objects.all().order_by("-id")[:5],
         'categories': Category.objects.all(),
         'current_sort': sort_by,
         'current_category': category_filter,
@@ -101,7 +86,6 @@ def signup(request):
             messages.success(request, f'Аккаунт успешно создан для {user.username}! Теперь вы можете войти в систему.')
             return redirect('signin')
         else:
-            # Показываем конкретные ошибки валидации
             for field, errors in form.errors.items():
                 field_name = form.fields[field].label if field in form.fields else field
                 for error in errors:
@@ -133,11 +117,9 @@ def signin(request):
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
-        
-        # Проверяем существует ли пользователь
+
         try:
             user_exists = User.objects.get(username=username)
-            # Если пользователь существует, проверяем пароль
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 auth.login(request, user)
@@ -159,23 +141,19 @@ def logout(request):
 
 def blog(request):
     from django.core.paginator import Paginator
-    
-    # Получаем параметр страницы
+
     page_number = request.GET.get('page', 1)
-    
-    # Посты пользователя (если авторизован)
+
     user_posts = Post.objects.filter(user_id=request.user.id).order_by("-id") if request.user.is_authenticated else Post.objects.none()
-    
-    # Все посты для основного списка (самые новые сначала)
+
     all_posts = Post.objects.all().order_by("-id")
-    
-    # Пагинация для всех постов
-    paginator = Paginator(all_posts, 5)  # 5 постов на страницу
+
+    paginator = Paginator(all_posts, 5)
     page_obj = paginator.get_page(page_number)
     
     return render(request, "blog.html", {
-        'posts': user_posts[:3],  # Показываем только 3 поста пользователя
-        'recent_posts': page_obj,  # Используем пагинированные посты
+        'posts': user_posts[:3],
+        'recent_posts': page_obj,
         'page_obj': page_obj,
         'user': request.user,
         'media_url': settings.MEDIA_URL
@@ -186,6 +164,10 @@ def blog(request):
 def create(request):
     from .forms import PostForm
     from .models import Category
+
+    if not Post.can_create_posts(request.user):
+        messages.error(request, "У вас нет прав для создания постов. Обратитесь к администратору для получения прав редактирования.")
+        return redirect('index')
     
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
@@ -193,13 +175,17 @@ def create(request):
             try:
                 post = form.save(commit=False)
                 post.user = request.user
+
+                category_choice = form.cleaned_data.get('category_choice')
+                new_category = form.cleaned_data.get('new_category', '').strip()
                 
-                # Обработка категории
-                category_name = form.cleaned_data.get('category', '').strip()
-                if category_name:
-                    category, created = Category.objects.get_or_create(name=category_name)
+                if new_category:
+                    category, created = Category.objects.get_or_create(name=new_category)
                     post.category_obj = category
-                    post.category = category_name
+                    post.category = new_category
+                elif category_choice:
+                    post.category_obj = category_choice
+                    post.category = category_choice.name
                 
                 post.save()
                 messages.success(request, "Пост успешно создан")
@@ -221,15 +207,23 @@ def create(request):
 
 def profile(request, id):
     profile_user = User.objects.get(id=id)
-    # Посты, которые пользователь создал
     authored_posts = Post.objects.filter(user_id=id)
-    # Посты, которые пользователь может редактировать
     editable_posts = Post.objects.filter(editors=profile_user)
+    
+    # Для админов - получаем информацию о глобальных редакторах
+    global_editors = []
+    available_users = []
+    if request.user.is_superuser and request.user.id == id:
+        global_editors = GlobalEditor.objects.filter(is_active=True).select_related('user')
+        editor_user_ids = global_editors.values_list('user_id', flat=True)
+        available_users = User.objects.exclude(id__in=editor_user_ids).exclude(is_superuser=True)
     
     return render(request, 'profile.html', {
         'profile_user': profile_user,
         'posts': authored_posts,
         'editable_posts': editable_posts,
+        'global_editors': global_editors,
+        'available_users': available_users,
         'media_url': settings.MEDIA_URL,
     })
 
@@ -258,8 +252,7 @@ def profileedit(request, id):
 def manage_editors(request, post_id):
     """Управление редакторами поста"""
     post = get_object_or_404(Post, id=post_id)
-    
-    # Проверка прав: только автор поста или суперпользователь может назначать редакторов
+
     if request.user != post.user and not request.user.is_superuser:
         return HttpResponseForbidden("У вас нет прав для управления редакторами этого поста")
     
@@ -270,7 +263,7 @@ def manage_editors(request, post_id):
         if action == 'add' and user_id:
             try:
                 editor_user = User.objects.get(id=user_id)
-                if editor_user != post.user:  # Автор не может быть редактором самого себя
+                if editor_user != post.user:
                     editor_obj, created = PostEditor.objects.get_or_create(
                         post=post, 
                         user=editor_user,
@@ -293,9 +286,9 @@ def manage_editors(request, post_id):
             except User.DoesNotExist:
                 messages.error(request, "Пользователь не найден")
     
-    # Получаем текущих редакторов и всех пользователей
+
     current_editors = post.editors.all()
-    all_users = User.objects.exclude(id=post.user.id)  # Исключаем автора
+    all_users = User.objects.exclude(id=post.user.id)
     available_users = all_users.exclude(id__in=current_editors.values_list('id', flat=True))
     
     return render(request, 'manage_editors.html', {
@@ -331,8 +324,7 @@ def assign_editor_ajax(request, post_id):
     """AJAX назначение редактора"""
     if request.method == 'POST':
         post = get_object_or_404(Post, id=post_id)
-        
-        # Проверка прав
+
         if request.user != post.user and not request.user.is_superuser:
             return JsonResponse({'success': False, 'message': 'Нет прав для назначения редакторов'})
         
@@ -369,8 +361,7 @@ def toggle_like(request, id):
     if request.method == 'POST':
         post = get_object_or_404(Post, id=id)
         is_liked = post.toggle_like(request.user)
-        
-        # Добавляем сообщение об успешном действии
+
         if is_liked:
             messages.success(request, f'❤️ Лайк успешно поставлен на пост "{post.postname}"!')
         else:
@@ -385,35 +376,26 @@ def toggle_like(request, id):
                 'message': f'❤️ Лайк поставлен!' if is_liked else f'💔 Лайк убран!',
                 'success': True
             })
-    
-    # Перенаправляем на ту же страницу, откуда пришел запрос
+
     referer = request.META.get('HTTP_REFERER')
     if referer:
         return redirect(referer)
     else:
-        # Если нет HTTP_REFERER, перенаправляем на страницу поста
         return redirect('post', id=id)
 
 
 def post(request, id):
     post = get_object_or_404(Post, id=id)
 
-    # Добавляем просмотр при заходе на страницу поста
     if request.user.is_authenticated:
-        # Для авторизованных пользователей используем систему PostView
         post.add_view(request.user)
     else:
-        # Для анонимных пользователей используем сессии
-        # Создаем уникальный ключ на основе ID поста
         session_key = f'viewed_post_{post.id}'
-        
-        # Проверяем, не просматривал ли уже этот пользователь этот пост
+
         if not request.session.get(session_key, False):
             post.views += 1
             post.save()
-            # Отмечаем в сессии, что пост просмотрен
             request.session[session_key] = True
-            # Устанавливаем время жизни сессии из настроек
             timeout = getattr(settings, 'ANONYMOUS_VIEW_SESSION_TIMEOUT', 86400)
             request.session.set_expiry(timeout)
 
@@ -441,14 +423,52 @@ def savecomment(request, id):
 def deletecomment(request, id):
     comment = get_object_or_404(Comment, id=id)
 
-    # Проверка прав: автор комментария, создатель поста или суперпользователь
     if request.user != comment.user and request.user != comment.post.user and not request.user.is_superuser:
         return HttpResponseForbidden("У вас нет прав для удаления этого комментария")
 
-    post_id = comment.post.id
-    comment.delete()
-    messages.success(request, "Комментарий успешно удален")
-    return redirect("post", id=post_id)
+    comment.soft_delete()
+    messages.success(request, "Комментарий удален")
+    return redirect('post', id=comment.post.id)
+
+
+@login_required
+def reply_comment(request, comment_id):
+    """Ответ на комментарий"""
+    parent_comment = get_object_or_404(Comment, id=comment_id)
+    
+    if request.method == 'POST':
+        content = request.POST.get('content', '').strip()
+        if content:
+            Comment.objects.create(
+                content=content,
+                post=parent_comment.post,
+                user=request.user,
+                parent=parent_comment
+            )
+            messages.success(request, "Ответ добавлен")
+        else:
+            messages.error(request, "Комментарий не может быть пустым")
+    
+    return redirect('post', id=parent_comment.post.id)
+
+
+@login_required
+def toggle_comment_like(request, comment_id):
+    """Переключение лайка комментария"""
+    comment = get_object_or_404(Comment, id=comment_id)
+    
+    if request.method == 'POST':
+        is_liked = comment.toggle_like(request.user)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'likes_count': comment.likes,
+                'is_liked': is_liked,
+                'message': f'❤️ Лайк поставлен!' if is_liked else f'💔 Лайк убран!',
+                'success': True
+            })
+    
+    return redirect('post', id=comment.post.id)
 
 
 @login_required
@@ -457,7 +477,6 @@ def editpost(request, id):
     from .models import Category
     post = get_object_or_404(Post, id=id)
 
-    # Проверка прав: автор поста, назначенный редактор или суперпользователь
     if not post.can_edit(request.user):
         return HttpResponseForbidden("У вас нет прав для редактирования этого поста")
 
@@ -466,25 +485,26 @@ def editpost(request, id):
         if form.is_valid():
             try:
                 post = form.save(commit=False)
+
+                category_choice = form.cleaned_data.get('category_choice')
+                new_category = form.cleaned_data.get('new_category', '').strip()
                 
-                # Обработка категории
-                category_name = form.cleaned_data.get('category', '').strip()
-                if category_name:
-                    category, created = Category.objects.get_or_create(name=category_name)
+                if new_category:
+                    category, created = Category.objects.get_or_create(name=new_category)
                     post.category_obj = category
-                    post.category = category_name
+                    post.category = new_category
+                elif category_choice:
+                    post.category_obj = category_choice
+                    post.category = category_choice.name
                 else:
                     post.category_obj = None
                     post.category = ''
 
                 post.save()
-                
-                # Обработка редакторов (только автор или админ может назначать)
+
                 if request.user == post.user or request.user.is_superuser:
                     editors = form.cleaned_data.get('editors', [])
-                    # Удаляем старых редакторов
                     PostEditor.objects.filter(post=post).delete()
-                    # Добавляем новых редакторов
                     for editor in editors:
                         PostEditor.objects.create(
                             post=post,
@@ -501,7 +521,6 @@ def editpost(request, id):
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
     else:
-        # Инициализируем форму с данными поста
         form = PostEditForm(instance=post, user=post.user)
 
     return render(request, "postedit.html", {
@@ -515,7 +534,6 @@ def editpost(request, id):
 def deletepost(request, id):
     post = get_object_or_404(Post, id=id)
 
-    # Проверка прав: автор поста или суперпользователь
     if request.user != post.user and not request.user.is_superuser:
         return HttpResponseForbidden("У вас нет прав для удаления этого поста")
 
@@ -524,7 +542,6 @@ def deletepost(request, id):
     return redirect('profile', id=request.user.id)
 
 
-# Дополнительная функция для суперпользователя - просмотр всех постов
 @login_required
 def admin_posts(request):
     if not request.user.is_superuser:
@@ -536,13 +553,11 @@ def admin_posts(request):
     })
 
 
-# Новая функция для получения популярных постов по просмотрам
 def get_popular_posts(limit=5):
     """Возвращает самые популярные посты по количеству просмотров"""
     return Post.objects.all().order_by("-views")[:limit]
 
 
-# Обновляем индексную страницу с популярными постами
 def index_with_views(request):
     return render(request, "index.html", {
         'posts': Post.objects.filter(user_id=request.user.id).order_by("id").reverse(),
@@ -558,8 +573,7 @@ def index_with_views(request):
 def assign_editor(request, post_id):
     """Назначить редактора к посту"""
     post = get_object_or_404(Post, id=post_id)
-    
-    # Только автор поста или админ может назначать редакторов
+
     if request.user != post.user and not request.user.is_superuser:
         return HttpResponseForbidden("У вас нет прав для назначения редакторов")
     
@@ -587,8 +601,7 @@ def assign_editor(request, post_id):
 def remove_editor(request, post_id, editor_id):
     """Убрать редактора с поста"""
     post = get_object_or_404(Post, id=post_id)
-    
-    # Только автор поста или админ может убирать редакторов
+
     if request.user != post.user and not request.user.is_superuser:
         return HttpResponseForbidden("У вас нет прав для управления редакторами")
     
@@ -604,22 +617,65 @@ def remove_editor(request, post_id, editor_id):
     return redirect('post', id=post_id)
 
 
+@login_required
+def manage_global_editors(request):
+    """Управление глобальными редакторами (только для суперпользователей)"""
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Только для администраторов")
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        user_id = request.POST.get('user_id')
+        
+        if action == 'add' and user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                if not user.is_superuser:
+                    editor_obj, created = GlobalEditor.objects.get_or_create(
+                        user=user,
+                        defaults={'assigned_by': request.user, 'is_active': True}
+                    )
+                    if created:
+                        messages.success(request, f"Пользователь {user.username} назначен глобальным редактором")
+                    else:
+                        editor_obj.is_active = True
+                        editor_obj.save()
+                        messages.success(request, f"Пользователь {user.username} снова активирован как редактор")
+                else:
+                    messages.error(request, "Суперпользователи не могут быть назначены редакторами")
+            except User.DoesNotExist:
+                messages.error(request, "Пользователь не найден")
+        
+        elif action == 'remove' and user_id:
+            try:
+                editor = GlobalEditor.objects.get(user_id=user_id, is_active=True)
+                editor.is_active = False
+                editor.save()
+                messages.success(request, f"Пользователь {editor.user.username} удален из глобальных редакторов")
+            except GlobalEditor.DoesNotExist:
+                messages.error(request, "Редактор не найден")
+    
+    return redirect('profile', id=request.user.id)
+
+
 def posts_filtered(request):
     """Страница с фильтрацией и сортировкой постов"""
     from .models import Category, Comment
     from django.db.models import Count
     
     posts = Post.objects.all()
-    
-    # Фильтрация по категории
+
     category_filter = request.GET.get('category')
     if category_filter:
         if category_filter.isdigit():
             posts = posts.filter(category_obj_id=category_filter)
         else:
-            posts = posts.filter(category__icontains=category_filter)
-    
-    # Сортировка
+            from django.db.models import Q
+            posts = posts.filter(
+                Q(category_obj__name__icontains=category_filter) | 
+                Q(category__icontains=category_filter)
+            )
+
     sort_by = request.GET.get('sort', 'newest')
     if sort_by == 'likes':
         posts = posts.order_by('-likes')
@@ -627,7 +683,7 @@ def posts_filtered(request):
         posts = posts.order_by('-views')
     elif sort_by == 'comments':
         posts = posts.annotate(comment_count=Count('comment')).order_by('-comment_count')
-    else:  # newest
+    else: 
         posts = posts.order_by('-id')
     
     return render(request, "posts_filtered.html", {

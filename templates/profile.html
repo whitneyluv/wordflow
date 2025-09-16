@@ -220,9 +220,12 @@
                         </li>
 
                         {% if user.is_authenticated %}
+                        {% load post_extras %}
+                        {% if user|can_create_posts %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'create' %}">Создать</a>
                         </li>
+                        {% endif %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'profile' user.id %}">Профиль</a>
                         </li>
@@ -368,6 +371,83 @@
                                 </div>
                             </div>
                         </div>
+
+      </div>
+                        
+                        {% if user.is_superuser and user.id == profile_user.id %}
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Управление глобальными редакторами</h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Текущие глобальные редакторы -->
+                                <div class="mb-4">
+                                    <h6>Текущие глобальные редакторы:</h6>
+                                    {% if global_editors %}
+                                    <div class="row">
+                                        {% for editor in global_editors %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                                                <div>
+                                                    <strong>{{ editor.user.username }}</strong>
+                                                    <small class="text-muted d-block">{{ editor.user.first_name }} {{ editor.user.last_name }}</small>
+                                                    <small class="text-muted">Назначен: {{ editor.assigned_at|date:"d.m.Y H:i" }}</small>
+                                                </div>
+                                                <form method="post" action="{% url 'manage_global_editors' %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <input type="hidden" name="user_id" value="{{ editor.user.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                                            onclick="return confirm('Убрать {{ editor.user.username }} из глобальных редакторов?')">
+                                                        <i class="fas fa-times"></i> Убрать
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted">Нет назначенных глобальных редакторов</p>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Добавление нового глобального редактора -->
+                                <div>
+                                    <h6>Назначить нового глобального редактора:</h6>
+                                    {% if available_users %}
+                                    <form method="post" action="{% url 'manage_global_editors' %}" class="row g-3">
+                                        {% csrf_token %}
+                                        <div class="col-md-8">
+                                            <select name="user_id" class="form-select" required>
+                                                <option value="">Выберите пользователя...</option>
+                                                {% for user in available_users %}
+                                                <option value="{{ user.id }}">{{ user.username }} - {{ user.first_name }} {{ user.last_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="hidden" name="action" value="add">
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fas fa-plus"></i> Назначить редактором
+                                            </button>
+                                        </div>
+                                    </form>
+                                    {% else %}
+                                    <p class="text-muted">Все пользователи уже назначены редакторами или являются администраторами</p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle"></i> 
+                                        Глобальные редакторы могут создавать новые посты в системе. 
+                                        Убрав пользователя из редакторов, вы лишите его возможности создавать посты.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                     </div>
                 </div>
             </div>

@@ -4,10 +4,6 @@ register = template.Library()
 
 @register.filter
 def russian_plural(count, forms):
-    """
-    Russian pluralization filter
-    Usage: {{ count|russian_plural:"комментарий,комментария,комментариев" }}
-    """
     forms_list = forms.split(',')
     if len(forms_list) != 3:
         return forms_list[0] if forms_list else ''

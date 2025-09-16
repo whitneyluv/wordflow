@@ -17,6 +17,9 @@ urlpatterns = [
     path("post/<int:post_id>/assign_editor",views.assign_editor,name="assign_editor"),
     path("post/comment/<int:id>",views.savecomment,name="savecomment"),
     path("post/comment/delete/<int:id>",views.deletecomment,name="deletecomment"),
+    path("comment/reply/<int:comment_id>",views.reply_comment,name="reply_comment"),
+    path("comment/like/<int:comment_id>",views.toggle_comment_like,name="toggle_comment_like"),
     path("post/edit/<int:id>",views.editpost,name="editpost"),
     path("post/delete/<int:id>",views.deletepost,name="deletepost"),
+    path("manage_global_editors/",views.manage_global_editors,name="manage_global_editors"),
 ]

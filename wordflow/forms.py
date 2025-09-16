@@ -3,29 +3,78 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
-from .models import Post
+from .models import Post, Category
 from ckeditor.widgets import CKEditorWidget
 import re
 
 class PostForm(forms.ModelForm):
     content = forms.CharField(
         label='Содержание',
-        widget=CKEditorWidget(config_name='basic')
+        widget=CKEditorWidget(config_name='basic'),
+        required=True  # Обязательное поле
+    )
+    
+    category_choice = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
+        empty_label="Выберите категорию или создайте новую",
+        required=False,
+        label='Выбрать существующую категорию',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    new_category = forms.CharField(
+        max_length=100,
+        required=False,
+        label='Или создать новую категорию',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите название новой категории'})
     )
     
     class Meta:
         model = Post
-        fields = ['postname', 'content', 'category', 'image']
+        fields = ['postname', 'content', 'image']
         widgets = {
             'postname': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
-            'category': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
-            'image': forms.FileInput(attrs={'class': 'form-control'}),
+            'image': forms.FileInput(attrs={'class': 'form-control', 'required': True}),
         }
         labels = {
             'postname': 'Заголовок',
-            'category': 'Категория',
             'image': 'Изображение',
         }
+    
+    def clean_content(self):
+        content = self.cleaned_data.get('content', '').strip()
+        
+        # Удаляем HTML теги из контента для проверки
+        import re
+        content_text = re.sub(r'<[^>]+>', '', content).strip()
+        
+        if not content_text:
+            raise ValidationError('Пост должен содержать текст. Нельзя создавать посты с пустым содержанием.')
+        
+        return content
+    
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        
+        if not image:
+            raise ValidationError('Пост должен содержать изображение. Нельзя создавать посты без фотографий.')
+        
+        return image
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        category_choice = cleaned_data.get('category_choice')
+        new_category = cleaned_data.get('new_category', '').strip()
+        
+        # Проверяем, что выбрана существующая категория или введена новая
+        if not category_choice and not new_category:
+            raise ValidationError('Выберите существующую категорию или создайте новую.')
+        
+        # Если введены и выбрана категория, и новая - приоритет новой
+        if category_choice and new_category:
+            cleaned_data['category_choice'] = None  # Очищаем выбор, используем новую
+        
+        return cleaned_data
 
 class PostEditForm(forms.ModelForm):
     content = forms.CharField(
@@ -40,18 +89,31 @@ class PostEditForm(forms.ModelForm):
         label='Редакторы'
     )
     
+    category_choice = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
+        empty_label="Выберите категорию или создайте новую",
+        required=False,
+        label='Выбрать существующую категорию',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    new_category = forms.CharField(
+        max_length=100,
+        required=False,
+        label='Или создать новую категорию',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите название новой категории'})
+    )
+    
     class Meta:
         model = Post
-        fields = ['postname', 'content', 'category', 'image']
+        fields = ['postname', 'content', 'image']
         widgets = {
             'postname': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
-            'category': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'image': forms.FileInput(attrs={'class': 'form-control'}),
         }
         labels = {
             'postname': 'Заголовок',
-            'category': 'Категория',
-            'image': 'Обновить изображение',
+            'image': 'Обновить изображение (необязательно)',
         }
     
     def __init__(self, *args, **kwargs):
@@ -65,6 +127,45 @@ class PostEditForm(forms.ModelForm):
             # Если редактируем существующий пост, устанавливаем текущих редакторов
             if self.instance and self.instance.pk:
                 self.fields['editors'].initial = self.instance.editors.all()
+                # Устанавливаем текущую категорию поста
+                if self.instance.category_obj:
+                    self.fields['category_choice'].initial = self.instance.category_obj
+    
+    def clean_content(self):
+        content = self.cleaned_data.get('content', '').strip()
+        
+        # Удаляем HTML теги из контента для проверки
+        import re
+        content_text = re.sub(r'<[^>]+>', '', content).strip()
+        
+        if not content_text:
+            raise ValidationError('Пост должен содержать текст. Нельзя создавать посты с пустым содержанием.')
+        
+        return content
+    
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        
+        # Для редактирования: проверяем изображение только если его нет у существующего поста
+        if not image and (not self.instance or not self.instance.image):
+            raise ValidationError('Пост должен содержать изображение. Нельзя создавать посты без фотографий.')
+        
+        return image
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        category_choice = cleaned_data.get('category_choice')
+        new_category = cleaned_data.get('new_category', '').strip()
+        
+        # Проверяем, что выбрана существующая категория или введена новая
+        if not category_choice and not new_category:
+            raise ValidationError('Выберите существующую категорию или создайте новую.')
+        
+        # Если введены и выбрана категория, и новая - приоритет новой
+        if category_choice and new_category:
+            cleaned_data['category_choice'] = None  # Очищаем выбор, используем новую
+        
+        return cleaned_data
 
 class CustomUserCreationForm(forms.ModelForm):
     email = forms.EmailField(
@@ -146,7 +247,39 @@ class CustomUserCreationForm(forms.ModelForm):
             
             # Проверка на только цифры
             if password1.isdigit():
-                errors.append('Введённый пароль состоит только из цифр.')
+                errors.append('Пароль не может состоять только из цифр.')
+            
+            # Проверка на только буквы
+            if password1.isalpha():
+                errors.append('Пароль не может состоять только из букв.')
+            
+            # Проверка разнообразия символов
+            has_upper = any(c.isupper() for c in password1)
+            has_lower = any(c.islower() for c in password1)
+            has_digit = any(c.isdigit() for c in password1)
+            has_special = any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password1)
+            
+            char_types = sum([has_upper, has_lower, has_digit, has_special])
+            if char_types < 3:
+                errors.append('Пароль должен содержать минимум 3 типа символов: заглавные буквы, строчные буквы, цифры и специальные символы.')
+            
+            # Проверка на повторяющиеся символы
+            if len(set(password1)) < 4:
+                errors.append('Пароль содержит слишком мало уникальных символов.')
+            
+            # Проверка на последовательности
+            sequences = ['123456', '654321', 'abcdef', 'fedcba', 'qwerty', 'asdfgh', 'zxcvbn']
+            for seq in sequences:
+                if seq in password1.lower():
+                    errors.append('Пароль содержит простые последовательности символов.')
+                    break
+            
+            # Проверка на повторяющиеся паттерны
+            for i in range(len(password1) - 2):
+                pattern = password1[i:i+3]
+                if password1.count(pattern) > 1:
+                    errors.append('Пароль содержит повторяющиеся паттерны.')
+                    break
 
             common_passwords = [
                 '12345678', '87654321', '123456789', '987654321', '1234567890',
@@ -164,7 +297,7 @@ class CustomUserCreationForm(forms.ModelForm):
                 'administrator', 'root', 'user', 'guest', 'test', 'demo',
                 'welcome', 'login', 'master', 'super', 'secret', 'default',
                 'computer', 'internet', 'windows', 'microsoft', 'google',
-                'facebook', 'twitter', 'instagram', 'youtube', 'apple',
+                'facebook', 'twitter', 'instagram', 'youtube', 'apple', 'qwerty12'
 
                 'пароль', 'парольпароль', 'пароль123', 'йцукен', 'йцукенг',
                 'фывапр', 'фывапролд', 'ячсмить', 'ячсмитьбю', 'админ',
@@ -217,7 +350,7 @@ class CustomUserCreationForm(forms.ModelForm):
             ]
             if password1.lower() in common_passwords:
                 errors.append('Введённый пароль слишком широко распространён.')
-            
+
             # Дополнительная проверка через Django валидаторы
             try:
                 validate_password(password1, self.instance)

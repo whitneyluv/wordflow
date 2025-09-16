@@ -33,6 +33,24 @@ def can_delete_comment(comment, user):
         return False
     return user == comment.user or user == comment.post.user or user.is_superuser
 
+@register.filter
+def can_create_posts(user):
+    """Проверяет, может ли пользователь создавать посты"""
+    from ..models import Post
+    return Post.can_create_posts(user)
+
+@register.filter
+def is_liked_by_comment(comment, user):
+    """Проверяет, поставил ли пользователь лайк комментарию"""
+    if user.is_authenticated:
+        return comment.liked_by.filter(id=user.id).exists()
+    return False
+
+@register.filter
+def can_edit_post(post, user):
+    """Проверяет, может ли пользователь редактировать пост"""
+    return post.can_edit(user)
+
 def pluralize_russian(count, form1, form2, form5):
     if count % 10 == 1 and count % 100 != 11:
         return f"{count} {form1}"

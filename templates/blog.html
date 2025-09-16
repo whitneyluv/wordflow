@@ -363,13 +363,13 @@
     <div class="row row-cols-lg-3 row-cols-md-2 row-cols-1">
 
       {% for post in posts|slice:"0:3" %}
-      <div class="col col-lg-4 col-md-6 col-12 mb-2 blog-post">
+      <div class="col col-lg-4 col-md-6 col-12 mb-2 blog-post" onclick="window.location.href='{% url 'post' post.id %}'" style="cursor: pointer;">
         <img src="{{media_url}}{{post.image}}" alt="" width="100%" height="300px">
         <div class=" px-3 py-5 shadow">
-          <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark">
-            <span class="text-white bg-info text-center rounded-3 mt-5" style="padding: 8px;">{{post.category}}</span>
-            <h5 class="mt-4">{{post.postname}}</h5>
-          </a>
+        <div class="text-decoration-none text-dark">
+          <span class="text-white bg-info text-center rounded-3 mt-5" style="padding: 8px;">{{post.category}}</span>
+          <h5 class="mt-4">{{post.postname}}</h5>
+        </div>
 
           <p>{{post.content|safe|slice:"0:100"}}...</p>
           <div class="d-flex justify-content-between align-items-center">
@@ -400,14 +400,14 @@
 
               {% for post in recent_posts %}
               <div class="col-lg-12">
-                <div class="blog-post">
+                <div class="blog-post" onclick="window.location.href='{% url 'post' post.id %}'" style="cursor: pointer;">
                   <div class="blog-thumb">
                     <img src="{{media_url}}{{post.image}}" alt="" style="height: 500px;">
                   </div>
                   <div class="down-content">
                     <span>{{post.category}}</span>
                     {% if user.is_authenticated %}
-                    <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
+                    <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}" onclick="event.stopPropagation();">
                       {% csrf_token %}
                       <button class="float-right btn like-btn {% if post|is_liked_by:user %}liked{% endif %}" type="submit"
                         data-liked="{% if post|is_liked_by:user %}true{% else %}false{% endif %}"
@@ -420,9 +420,9 @@
                       {{post.likes}} <i class="fa fa-heart"></i>
                     </div>
                     {% endif %}
-                    <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark">
+                    <div class="text-decoration-none text-dark">
                       <h5>{{post.postname}}</h5>
-                    </a>
+                    </div>
                     <ul class="post-info">
                       <li><a href="#">{{post.user}}</a></li>
                       <li><a href="#">{{post.time}}</a></li>

@@ -28,7 +28,42 @@
       /* Стили для иконки просмотров */
       .view-icon i {
         margin-right: 4px;
-        color: inherit;
+      }
+      
+      /* Стили для кнопок лайков */
+      .like-btn {
+        border: 1px solid #dc3545;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+      }
+      
+      .like-btn.liked {
+        background: #dc3545;
+        color: white;
+      }
+      
+      .like-btn.not-liked {
+        background: transparent;
+        color: #dc3545;
+      }
+      
+      .like-btn:hover {
+        transform: scale(1.05);
+      }
+      
+      /* Стили для форм ответа */
+      .reply-form {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+      }
+      
+      /* Отладочный стиль - показать все формы ответа */
+      .reply-form.debug {
+        display: block !important;
+        border: 2px solid red;
       }
     </style>
     
@@ -71,8 +106,7 @@ https://templatemo.com/tm-551-stand-blog
                           {% if user.is_authenticated %}
                           <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
                             {% csrf_token %}
-                            <button class="btn like-btn" type="submit"
-                              style="border: 1px solid #dc3545; background: {% if post|is_liked_by:user %}#dc3545{% else %}transparent{% endif %}; color: {% if post|is_liked_by:user %}white{% else %}#dc3545{% endif %}; padding: 8px 16px;"
+                            <button class="btn like-btn {% if post|is_liked_by:user %}liked{% else %}not-liked{% endif %}" type="submit"
                               title="{%if post|is_liked_by:user%}Убрать лайк{%else%}Поставить лайк{%endif%}">
                               <i class="fa fa-heart"></i> <span class="likes-count">{{post.likes}}</span>
                             </button>
@@ -80,6 +114,19 @@ https://templatemo.com/tm-551-stand-blog
                           {% else %}
                           <div class="btn" style="border: 1px solid #6c757d; background: transparent; color: #6c757d; cursor: not-allowed; padding: 8px 16px;">
                             <i class="fa fa-heart"></i> {{post.likes}}
+                          </div>
+                          {% endif %}
+                          
+                          <!-- Кнопки редактирования и удаления для админа и автора -->
+                          {% if user.is_authenticated and post|can_edit_post:user %}
+                          <div class="d-flex gap-2">
+                            <a href="{% url 'editpost' post.id %}" class="btn btn-sm btn-outline-primary" title="Редактировать пост">
+                              <i class="fa fa-edit"></i> Редактировать
+                            </a>
+                            <a href="{% url 'deletepost' post.id %}" class="btn btn-sm btn-outline-danger" 
+                               onclick="return confirm('Вы уверены, что хотите удалить этот пост?')" title="Удалить пост">
+                              <i class="fa fa-trash"></i> Удалить
+                            </a>
                           </div>
                           {% endif %}
                           
@@ -101,16 +148,92 @@ https://templatemo.com/tm-551-stand-blog
                     <div class="content">
                       <ul>
                         {% for comment in comments %}
-                        <li style="display: block;">
+                        {% if not comment.parent %}
+                        <li style="display: block;" class="main-comment">
                           <div class="ps-3">
-                            <h5>{{comment.user}}<span class="small text-black-50 px-5 text-danger">{{comment.time}}</span>
-                              {% if comment|can_delete_comment:user %}
+                            <h5>
+                              {% if comment.is_deleted %}
+                                <span class="text-muted">[Удалено]</span>
+                              {% else %}
+                                {{comment.user}}
+                              {% endif %}
+                              <span class="small text-black-50 px-5 text-danger">{{comment.time}}</span>
+                              {% if comment|can_delete_comment:user and not comment.is_deleted %}
                               <a href="{% url 'deletecomment' comment.id %}" class="small text-danger float-right fw-bold pt-1">Удалить</a>
                               {% endif %}
                             </h5>
-                            <p>{{comment.content}}</p>
+                            <p>{{comment.get_display_content}}</p>
+                            
+                            {% if not comment.is_deleted %}
+                            <div class="comment-actions d-flex gap-3 mb-2">
+                              {% if user.is_authenticated %}
+                              <!-- Лайк комментария -->
+                              <form method="post" action="{% url 'toggle_comment_like' comment.id %}" class="comment-like-form d-inline" data-comment-id="{{comment.id}}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-link p-0 comment-like-btn" title="Лайк">
+                                  <i class="fa fa-heart {% if comment|is_liked_by_comment:user %}text-danger{% else %}text-muted{% endif %}"></i>
+                                  <span class="comment-likes-count">{{comment.likes}}</span>
+                                </button>
+                              </form>
+                              
+                              <!-- Кнопка ответа -->
+                              <button type="button" class="btn btn-sm btn-link p-0 text-primary reply-btn" data-comment-id="{{comment.id}}" onclick="toggleReplyForm({{comment.id}});">
+                                <i class="fa fa-reply"></i> Ответить
+                              </button>
+                              {% endif %}
+                            </div>
+                            
+                            <!-- Форма ответа (скрыта по умолчанию) -->
+                            {% if user.is_authenticated %}
+                            <div class="reply-form" id="reply-form-{{comment.id}}" style="display: none;">
+                              <form method="post" action="{% url 'reply_comment' comment.id %}" class="mt-2">
+                                {% csrf_token %}
+                                <div class="row">
+                                  <div class="col-10">
+                                    <textarea name="content" rows="2" placeholder="Ваш ответ..." class="form-control" required></textarea>
+                                  </div>
+                                  <div class="col-2">
+                                    <button type="submit" class="btn btn-primary btn-sm">Ответить</button>
+                                    <button type="button" class="btn btn-secondary btn-sm cancel-reply" onclick="$('#reply-form-{{comment.id}}').hide();">Отмена</button>
+                                  </div>
+                                </div>
+                              </form>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                            
+                            <!-- Ответы на комментарий -->
+                            {% for reply in comment.replies.all %}
+                            <div class="reply ms-4 mt-2 border-start border-2 ps-3">
+                              <h6>
+                                {% if reply.is_deleted %}
+                                  <span class="text-muted">[Удалено]</span>
+                                {% else %}
+                                  {{reply.user}}
+                                {% endif %}
+                                <span class="small text-black-50 px-3 text-danger">{{reply.time}}</span>
+                                {% if reply|can_delete_comment:user and not reply.is_deleted %}
+                                <a href="{% url 'deletecomment' reply.id %}" class="small text-danger float-right fw-bold">Удалить</a>
+                                {% endif %}
+                              </h6>
+                              <p class="small">{{reply.get_display_content}}</p>
+                              
+                              {% if not reply.is_deleted and user.is_authenticated %}
+                              <div class="reply-actions">
+                                <form method="post" action="{% url 'toggle_comment_like' reply.id %}" class="comment-like-form d-inline" data-comment-id="{{reply.id}}">
+                                  {% csrf_token %}
+                                  <button type="submit" class="btn btn-sm btn-link p-0 comment-like-btn" title="Лайк">
+                                    <i class="fa fa-heart {% if reply|is_liked_by_comment:user %}text-danger{% else %}text-muted{% endif %}"></i>
+                                    <span class="comment-likes-count">{{reply.likes}}</span>
+                                  </button>
+                                </form>
+                              </div>
+                              {% endif %}
+                            </div>
+                            {% endfor %}
                           </div>
                         </li>
+                        {% endif %}
                         {% endfor %}
                       </ul>
                     </div>
@@ -191,6 +314,28 @@ https://templatemo.com/tm-551-stand-blog
     <script src="{% static 'assets/js/isotope.js' %}"></script>
     <script src="{% static 'assets/js/accordions.js' %}"></script>
 
+    <script>
+      // Глобальная функция для переключения формы ответа
+      function toggleReplyForm(commentId) {
+          console.log('toggleReplyForm called with commentId:', commentId);
+          
+          // Скрываем все формы ответа
+          $('.reply-form').hide();
+          
+          // Показываем нужную форму
+          var replyForm = $('#reply-form-' + commentId);
+          console.log('Reply form element:', replyForm);
+          
+          if (replyForm.length > 0) {
+              replyForm.show();
+              console.log('Reply form shown');
+              // Фокусируемся на текстовом поле
+              replyForm.find('textarea').focus();
+          } else {
+              console.log('Reply form not found');
+          }
+      }
+    </script>
 
     <script language = "text/Javascript">
       cleared[0] = cleared[1] = cleared[2] = 0; //set a cleared flag for each field
@@ -221,9 +366,57 @@ https://templatemo.com/tm-551-stand-blog
           
           // Автоматически удаляем через 3 секунды
           setTimeout(function() {
-              notification.alert('close');
+              notification.fadeOut();
           }, 3000);
       }
+      
+      // Обработчик для кнопок ответа
+      $(document).ready(function() {
+          console.log('JavaScript loaded');
+          console.log('Reply buttons found:', $('.reply-btn').length);
+          
+          // Обработчик для кнопки отмены
+          $(document).on('click', '.cancel-reply', function() {
+              $(this).closest('.reply-form').hide();
+          });
+          
+          // AJAX обработчик для лайков комментариев
+          $(document).on('submit', '.comment-like-form', function(e) {
+              e.preventDefault();
+              
+              var form = $(this);
+              var commentId = form.data('comment-id');
+              var url = form.attr('action');
+              var csrfToken = form.find('[name=csrfmiddlewaretoken]').val();
+              
+              $.ajax({
+                  url: url,
+                  type: 'POST',
+                  data: {
+                      'csrfmiddlewaretoken': csrfToken
+                  },
+                  success: function(response) {
+                      if (response.success) {
+                          var heartIcon = form.find('.fa-heart');
+                          var likesCount = form.find('.comment-likes-count');
+                          
+                          // Обновляем счетчик лайков
+                          likesCount.text(response.likes_count);
+                          
+                          // Меняем цвет сердечка
+                          if (response.liked) {
+                              heartIcon.removeClass('text-muted').addClass('text-danger');
+                          } else {
+                              heartIcon.removeClass('text-danger').addClass('text-muted');
+                          }
+                      }
+                  },
+                  error: function() {
+                      showNotification('Ошибка при обработке лайка', 'error');
+                  }
+              });
+          });
+      });
       
       // AJAX для лайков
       $(document).ready(function() {

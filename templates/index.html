@@ -269,19 +269,19 @@
     <hr>
     <div class="row row-cols-lg-3 row-cols-md-2 row-cols-1" class="blog-posts">
 
-      {% for post in posts|slice:"0:3" %}
-      <div class="col col-lg-4 col-md-6 col-12 mb-2 blog-post">
+      {% for post in posts %}
+      <div class="col col-lg-4 col-md-6 col-12 mb-2 blog-post" onclick="window.location.href='{% url 'post' post.id %}'" style="cursor: pointer;">
         <img src="{{media_url}}{{post.image}}" alt="" width="100%" height="300px">
         <div class=" px-3 py-5 shadow">
-        <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark">
+        <div class="text-decoration-none text-dark">
           <span class="text-white bg-info text-center rounded-3 mt-5" style="padding: 8px;">{{post.category}}</span>
           <h5 class="mt-4">{{post.postname}}</h5>
-        </a>
+        </div>
 
         <p>{{post.content|safe|slice:"0:100"}}...</p>
         
         {% if user.is_authenticated %}
-        <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form mb-2" data-post-id="{{post.id}}">
+        <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form mb-2" data-post-id="{{post.id}}" onclick="event.stopPropagation();">
           {% csrf_token %}
           <button class="btn btn-sm like-btn" type="submit"
             style="border: none; background: transparent; font-size: 18px;"
@@ -322,9 +322,9 @@
         <h3 class="mb-0" style="color: rgb(227, 73, 73); font-size: 30px; font-weight: bold;">Посты</h3>
         
         <!-- Фильтры и сортировка -->
-        <div class="d-flex gap-3">
+        <form method="GET" action="{% url 'index' %}" class="d-flex gap-3" id="filterForm">
           <!-- Фильтр по категории -->
-          <select class="form-select" id="categoryFilter">
+          <select class="form-select" name="category" onchange="submitWithScroll()">
             <option value="">Все категории</option>
             {% for category in categories %}
             <option value="{{category.id}}" {% if current_category == category.id|stringformat:"s" %}selected{% endif %}>
@@ -333,34 +333,36 @@
             {% endfor %}
           </select>
           
-          
           <!-- Сортировка -->
-          <select class="form-select" id="sortBy">
+          <select class="form-select" name="sort" onchange="submitWithScroll()">
             <option value="newest" {% if current_sort == "newest" %}selected{% endif %}>Новейшие</option>
             <option value="likes" {% if current_sort == "likes" %}selected{% endif %}>По лайкам</option>
             <option value="views" {% if current_sort == "views" %}selected{% endif %}>По просмотрам</option>
             <option value="comments" {% if current_sort == "comments" %}selected{% endif %}>По комментариям</option>
           </select>
-        </div>
+          
+          <!-- Скрытое поле для сохранения позиции прокрутки -->
+          <input type="hidden" name="scroll" id="scrollPosition" value="">
+        </form>
       </div>
       <hr>
-      <div class=" row">
-        <div class="col-lg-8">
+      <div class="row">
+        <div class="col-lg-12">
           <div class="all-blog-posts">
             <div class="row">
 
               {% for post in top_posts %}
-              <div class="col col-lg-6 col-12 pb-2 blog-post ">
+              <div class="col-lg-4 col-md-6 col-sm-6 col-12 mb-4 blog-post" onclick="window.location.href='{% url 'post' post.id %}'" style="cursor: pointer;">
                 <img src="{{media_url}}{{post.image}}" alt="" class="img-fluid" width="100%">
                 <div class="px-3 py-5 shadow">
-                  <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark mb-3">
+                  <div class="text-decoration-none text-dark mb-3">
                     <span class="text-white bg-info text-center rounded-3 mt-5"
                       style="padding: 8px;">{{post.get_category_name}}</span>
                     <h5 class="mt-4">{{post.postname}}</h5>
-                  </a>
+                  </div>
                   
                   {% if user.is_authenticated %}
-                  <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}">
+                  <form method="post" action="{% url 'toggle_like' post.id %}" class="like-form" data-post-id="{{post.id}}" onclick="event.stopPropagation();">
                     {% csrf_token %}
                     <button class="float-right small like-btn" type="submit"
                       style="border: none; background: transparent; font-size: 20px;"
@@ -432,36 +434,6 @@
             {% endif %}
           </div>
         </div>
-        <div class="col-lg-4">
-          <div class="sidebar">
-            <div class="row">
-              <div class="col-lg-12">
-                <div class="sidebar-item recent-posts">
-                  <div class="sidebar-heading">
-                    <h2 style="color: rgb(240, 124, 78); font-size: 30px; font-weight: bold;">Популярные посты</h2>
-                  </div>
-                  <div class="content">
-                    <ul>
-
-                      {% for post in recent_posts|slice:"0:" %}
-                      <li>
-                        <img src="{{media_url}}{{post.image}}" class="img-fluid" alt="" width="100%">
-                        <a href="post-details.html">
-                          <a href="{% url 'post' post.id %}" class="text-decoration-none text-dark">
-                            <h5>{{post.postname}}</h5>
-                          </a>
-                          <span>{{post.time}}</span>
-                        </a>
-                      </li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </section>
@@ -485,11 +457,10 @@
   <script src="{% static 'assets/js/owl.js' %}"></script>
   <script src="{% static 'assets/js/slick.js' %}"></script>
   <script src="{% static 'assets/js/isotope.js' %}"></script>
-  <script src="{% static 'assets/js/accordions.js' %}"></script>
 
 
   <script language="text/Javascript">
-    cleared[0] = cleared[1] = cleared[2] = 0; //set a cleared flag for each field
+    var cleared = [0, 0, 0]; //set a cleared flag for each field
     function clearField(t) {                   //declaring the array outside of the
       if (!cleared[t.id]) {                      // function makes it static and global
         cleared[t.id] = 1;  // you could use true and false, but that's more typing
@@ -521,45 +492,6 @@
         }, 3000);
     }
     
-    // Функция для применения фильтров
-    function applyFilters() {
-        console.log('applyFilters() called');
-        
-        const categorySelect = document.getElementById('categoryFilter');
-        const sortSelect = document.getElementById('sortBy');
-        
-        if (!categorySelect || !sortSelect) {
-            console.error('Filter elements not found');
-            return;
-        }
-        
-        const category = categorySelect.value;
-        const sort = sortSelect.value;
-        
-        console.log('Category:', category);
-        console.log('Sort:', sort);
-        
-        const url = new URL(window.location);
-        
-        if (category && category !== '') {
-            url.searchParams.set('category', category);
-            console.log('Setting category parameter:', category);
-        } else {
-            url.searchParams.delete('category');
-            console.log('Removing category parameter');
-        }
-        
-        if (sort && sort !== 'newest') {
-            url.searchParams.set('sort', sort);
-            console.log('Setting sort parameter:', sort);
-        } else {
-            url.searchParams.delete('sort');
-            console.log('Removing sort parameter');
-        }
-        
-        console.log('New URL:', url.toString());
-        window.location.href = url.toString();
-    }
     
     // Плавные переходы между страницами и AJAX для лайков
     $(document).ready(function() {
@@ -586,16 +518,6 @@
         console.log('jQuery загружен, версия:', $.fn.jquery);
         console.log('Найдено форм лайков:', $('.like-form').length);
         
-        // Добавляем обработчики событий для фильтров
-        $('#categoryFilter').on('change', function() {
-            console.log('Category filter changed');
-            applyFilters();
-        });
-        
-        $('#sortBy').on('change', function() {
-            console.log('Sort filter changed');
-            applyFilters();
-        });
         
         // Обработчик для всех форм лайков
         $(document).on('submit', '.like-form', function(e) {
@@ -619,10 +541,10 @@
                 type: 'POST',
                 data: form.serialize(),
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
                 },
                 success: function(response) {
-                    console.log('AJAX успех:', response);
+                    console.log('Ответ от сервера:', response);
                     
                     // Обновляем счетчик
                     counter.text(response.likes_count);
@@ -652,7 +574,49 @@
             return false; // Дополнительная защита
         });
     });
+</script>
 
+<script>
+    // Функция для отправки формы с сохранением позиции прокрутки
+    function submitWithScroll() {
+      const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+      document.getElementById('scrollPosition').value = scrollPosition;
+      document.getElementById('filterForm').submit();
+    }
+
+    // Восстановление позиции прокрутки после загрузки страницы
+    window.addEventListener('load', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const scrollPosition = urlParams.get('scroll');
+      if (scrollPosition) {
+        setTimeout(() => {
+          window.scrollTo(0, parseInt(scrollPosition));
+        }, 100);
+      }
+    });
+
+    // Функция для показа уведомлений
+    function showNotification(message, type = 'info') {
+        // Удаляем старые уведомления
+        $('.notification').remove();
+        
+        // Определяем цвет в зависимости от типа
+        var bgClass = type === 'success' ? 'alert-success' : 'alert-info';
+        
+        // Создаем уведомление
+        var notification = $('<div class="alert ' + bgClass + ' alert-dismissible fade show notification" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+            message + 
+            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+            '</div>');
+        
+        // Добавляем в body
+        $('body').append(notification);
+        
+        // Автоматически удаляем через 3 секунды
+        setTimeout(function() {
+            notification.alert('close');
+        }, 3000);
+    }
   </script>
 
 </body>

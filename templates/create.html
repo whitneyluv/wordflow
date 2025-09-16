@@ -96,9 +96,12 @@
             </li>
 
             {% if user.is_authenticated %}
+            {% load post_extras %}
+            {% if user|can_create_posts %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'create' %}">Создать</a>
             </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'profile' user.id %}">Профиль</a>
             </li>
@@ -136,8 +139,13 @@
         </div>
         
         <div class="mb-3">
-          <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
-          {{ form.category }}
+          <label for="{{ form.category_choice.id_for_label }}" class="form-label">{{ form.category_choice.label }}</label>
+          {{ form.category_choice }}
+        </div>
+        
+        <div class="mb-3">
+          <label for="{{ form.new_category.id_for_label }}" class="form-label">{{ form.new_category.label }}</label>
+          {{ form.new_category }}
         </div>
         
         <div class="mb-3">
