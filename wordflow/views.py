@@ -13,31 +13,24 @@ def index(request):
     from .models import Category, Comment
     from django.db.models import Count
     from django.core.paginator import Paginator
-    
-    # Получаем параметры сортировки и фильтрации
+
     sort_by = request.GET.get('sort', 'newest')
     category_filter = request.GET.get('category')
     page_number = request.GET.get('page', 1)
-    
-    # Debug: Print all GET parameters
+
     print(f"DEBUG INDEX: All GET parameters: {dict(request.GET)}")
     print(f"DEBUG INDEX: sort_by = '{sort_by}'")
     print(f"DEBUG INDEX: category_filter = '{category_filter}'")
     print(f"DEBUG INDEX: page_number = '{page_number}'")
-    
-    # Базовые запросы
+
     user_posts = Post.objects.filter(user_id=request.user.id).order_by("-id") if request.user.is_authenticated else Post.objects.none()
-    
-    # Основные посты с сортировкой
+
     main_posts = Post.objects.all()
-    
-    # Фильтрация по категории
+
     if category_filter and category_filter != '':
         if category_filter.isdigit():
-            # Фильтрация по ID категории
             main_posts = main_posts.filter(category_obj_id=category_filter)
         else:
-            # Фильтрация по названию - проверяем и новое и старое поле
             from django.db.models import Q
             main_posts = main_posts.filter(
                 Q(category_obj__name__icontains=category_filter) | 
@@ -209,8 +202,7 @@ def profile(request, id):
     profile_user = User.objects.get(id=id)
     authored_posts = Post.objects.filter(user_id=id)
     editable_posts = Post.objects.filter(editors=profile_user)
-    
-    # Для админов - получаем информацию о глобальных редакторах
+
     global_editors = []
     available_users = []
     if request.user.is_superuser and request.user.id == id:
@@ -562,7 +554,7 @@ def index_with_views(request):
     return render(request, "index.html", {
         'posts': Post.objects.filter(user_id=request.user.id).order_by("id").reverse(),
         'top_posts': Post.objects.all().order_by("-likes"),
-        'popular_posts': get_popular_posts(5),  # Добавляем популярные по просмотрам
+        'popular_posts': get_popular_posts(5),
         'recent_posts': Post.objects.all().order_by("-id"),
         'user': request.user,
         'media_url': settings.MEDIA_URL

@@ -11,7 +11,7 @@ class PostForm(forms.ModelForm):
     content = forms.CharField(
         label='Содержание',
         widget=CKEditorWidget(config_name='basic'),
-        required=True  # Обязательное поле
+        required=True
     )
     
     category_choice = forms.ModelChoiceField(
@@ -43,8 +43,7 @@ class PostForm(forms.ModelForm):
     
     def clean_content(self):
         content = self.cleaned_data.get('content', '').strip()
-        
-        # Удаляем HTML теги из контента для проверки
+
         import re
         content_text = re.sub(r'<[^>]+>', '', content).strip()
         
@@ -65,14 +64,12 @@ class PostForm(forms.ModelForm):
         cleaned_data = super().clean()
         category_choice = cleaned_data.get('category_choice')
         new_category = cleaned_data.get('new_category', '').strip()
-        
-        # Проверяем, что выбрана существующая категория или введена новая
+
         if not category_choice and not new_category:
             raise ValidationError('Выберите существующую категорию или создайте новую.')
-        
-        # Если введены и выбрана категория, и новая - приоритет новой
+
         if category_choice and new_category:
-            cleaned_data['category_choice'] = None  # Очищаем выбор, используем новую
+            cleaned_data['category_choice'] = None
         
         return cleaned_data
 
@@ -121,20 +118,16 @@ class PostEditForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         if user:
-            # Исключаем автора поста из списка редакторов
             self.fields['editors'].queryset = User.objects.exclude(id=user.id)
-            
-            # Если редактируем существующий пост, устанавливаем текущих редакторов
+
             if self.instance and self.instance.pk:
                 self.fields['editors'].initial = self.instance.editors.all()
-                # Устанавливаем текущую категорию поста
                 if self.instance.category_obj:
                     self.fields['category_choice'].initial = self.instance.category_obj
     
     def clean_content(self):
         content = self.cleaned_data.get('content', '').strip()
-        
-        # Удаляем HTML теги из контента для проверки
+
         import re
         content_text = re.sub(r'<[^>]+>', '', content).strip()
         
@@ -145,8 +138,7 @@ class PostEditForm(forms.ModelForm):
     
     def clean_image(self):
         image = self.cleaned_data.get('image')
-        
-        # Для редактирования: проверяем изображение только если его нет у существующего поста
+
         if not image and (not self.instance or not self.instance.image):
             raise ValidationError('Пост должен содержать изображение. Нельзя создавать посты без фотографий.')
         
@@ -156,14 +148,12 @@ class PostEditForm(forms.ModelForm):
         cleaned_data = super().clean()
         category_choice = cleaned_data.get('category_choice')
         new_category = cleaned_data.get('new_category', '').strip()
-        
-        # Проверяем, что выбрана существующая категория или введена новая
+
         if not category_choice and not new_category:
             raise ValidationError('Выберите существующую категорию или создайте новую.')
-        
-        # Если введены и выбрана категория, и новая - приоритет новой
+
         if category_choice and new_category:
-            cleaned_data['category_choice'] = None  # Очищаем выбор, используем новую
+            cleaned_data['category_choice'] = None
         
         return cleaned_data
 
@@ -212,12 +202,10 @@ class CustomUserCreationForm(forms.ModelForm):
     def clean_email(self):
         email = self.cleaned_data.get('email')
         if email:
-            # Проверка базового формата email
             email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
             if not re.match(email_pattern, email):
                 raise ValidationError('Пожалуйста, укажите правильный email адрес (например: example@gmail.com)')
-            
-            # Список разрешенных доменов
+
             allowed_domains = [
                 'gmail.com', 'mail.ru', 'yandex.ru', 'yandex.com', 'yahoo.com',
                 'outlook.com', 'hotmail.com', 'rambler.ru', 'list.ru', 'bk.ru',
@@ -229,8 +217,7 @@ class CustomUserCreationForm(forms.ModelForm):
                 raise ValidationError(
                     f'Используйте email с одним из разрешенных доменов: {", ".join(allowed_domains)}'
                 )
-            
-            # Проверка на существование email
+
             if User.objects.filter(email=email).exists():
                 raise ValidationError('Пользователь с таким email уже существует.')
         
@@ -240,20 +227,16 @@ class CustomUserCreationForm(forms.ModelForm):
         password1 = self.cleaned_data.get('password1')
         if password1:
             errors = []
-            
-            # Проверка длины
+
             if len(password1) < 8:
                 errors.append('Пароль слишком короткий. Он должен содержать как минимум 8 символов.')
-            
-            # Проверка на только цифры
+
             if password1.isdigit():
                 errors.append('Пароль не может состоять только из цифр.')
-            
-            # Проверка на только буквы
+
             if password1.isalpha():
                 errors.append('Пароль не может состоять только из букв.')
-            
-            # Проверка разнообразия символов
+
             has_upper = any(c.isupper() for c in password1)
             has_lower = any(c.islower() for c in password1)
             has_digit = any(c.isdigit() for c in password1)
@@ -262,19 +245,16 @@ class CustomUserCreationForm(forms.ModelForm):
             char_types = sum([has_upper, has_lower, has_digit, has_special])
             if char_types < 3:
                 errors.append('Пароль должен содержать минимум 3 типа символов: заглавные буквы, строчные буквы, цифры и специальные символы.')
-            
-            # Проверка на повторяющиеся символы
+
             if len(set(password1)) < 4:
                 errors.append('Пароль содержит слишком мало уникальных символов.')
-            
-            # Проверка на последовательности
+
             sequences = ['123456', '654321', 'abcdef', 'fedcba', 'qwerty', 'asdfgh', 'zxcvbn']
             for seq in sequences:
                 if seq in password1.lower():
                     errors.append('Пароль содержит простые последовательности символов.')
                     break
-            
-            # Проверка на повторяющиеся паттерны
+
             for i in range(len(password1) - 2):
                 pattern = password1[i:i+3]
                 if password1.count(pattern) > 1:
@@ -351,7 +331,6 @@ class CustomUserCreationForm(forms.ModelForm):
             if password1.lower() in common_passwords:
                 errors.append('Введённый пароль слишком широко распространён.')
 
-            # Дополнительная проверка через Django валидаторы
             try:
                 validate_password(password1, self.instance)
             except ValidationError as error:
@@ -379,7 +358,7 @@ class CustomUserCreationForm(forms.ModelForm):
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
         user.set_password(self.cleaned_data['password1'])
-        user.is_active = True  # Пользователь сразу активен
+        user.is_active = True
         if commit:
             user.save()
         return user

@@ -178,16 +178,14 @@ class Comment(models.Model):
     def soft_delete(self):
         """Мягкое удаление комментария с сообщением об удалении только если есть ответы"""
         if self.replies.exists():
-            # Если есть ответы, делаем мягкое удаление
             self.is_deleted = True
             self.deleted_message = "Удалено автором"
             self.content = ""
             self.save()
-            return False  # Не удаляем физически
+            return False
         else:
-            # Если нет ответов, удаляем полностью
             self.delete()
-            return True  # Удалили физически
+            return True
     
     def get_display_content(self):
         """Возвращает контент для отображения"""

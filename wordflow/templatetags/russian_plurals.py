@@ -11,8 +11,8 @@ def russian_plural(count, forms):
     count = int(count)
     
     if count % 10 == 1 and count % 100 != 11:
-        return forms_list[0]  # 1, 21, 31, etc.
+        return forms_list[0]
     elif count % 10 in [2, 3, 4] and count % 100 not in [12, 13, 14]:
-        return forms_list[1]  # 2-4, 22-24, etc.
+        return forms_list[1]
     else:
-        return forms_list[2]  # 0, 5-20, 25-30, etc.
+        return forms_list[2]

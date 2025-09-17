@@ -26,7 +26,7 @@ class PostAdmin(admin.ModelAdmin):
     get_editors_count.short_description = 'Количество редакторов'
     
     def save_model(self, request, obj, form, change):
-        if not change:  # Если создается новый пост
+        if not change:
             obj.user = request.user
         super().save_model(request, obj, form, change)
 
@@ -70,7 +70,6 @@ class CategoryAdmin(admin.ModelAdmin):
         return obj.post_set.count()
     get_posts_count.short_description = 'Количество постов'
 
-# Расширенная настройка User админки
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 class UserAdmin(BaseUserAdmin):
@@ -85,7 +84,6 @@ class UserAdmin(BaseUserAdmin):
         return Comment.objects.filter(user=obj).count()
     get_comments_count.short_description = 'Комментариев'
 
-# Перерегистрируем User модель с расширенной админкой
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
@@ -103,7 +101,6 @@ class SessionAdmin(admin.ModelAdmin):
         return 'Нет данных'
     get_session_data_preview.short_description = 'Данные сессии (превью)'
 
-# Настройка заголовков админки
 admin.site.site_header = 'WordFlow | ADMIN PANEL'
 admin.site.site_title = 'WordFlow | BLOGGING WEBSITE'
 admin.site.index_title= 'WordFlow | Site Administration'

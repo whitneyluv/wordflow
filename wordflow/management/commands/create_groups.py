@@ -7,7 +7,6 @@ class Command(BaseCommand):
     help = 'Create user groups with appropriate permissions'
 
     def handle(self, *args, **options):
-        # Создаем группу "Редакторы"
         editors_group, created = Group.objects.get_or_create(name='Редакторы')
         
         if created:
@@ -15,21 +14,18 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING('Группа "Редакторы" уже существует'))
 
-        # Получаем типы контента
         post_content_type = ContentType.objects.get_for_model(Post)
         comment_content_type = ContentType.objects.get_for_model(Comment)
 
-        # Права для редакторов постов
         post_permissions = [
-            'change_post',  # Редактировать посты
-            'view_post',    # Просматривать посты
+            'change_post',
+            'view_post',
         ]
 
-        # Права для управления комментариями
         comment_permissions = [
-            'delete_comment',  # Удалять комментарии
-            'view_comment',    # Просматривать комментарии
-            'change_comment',  # Редактировать комментарии
+            'delete_comment',
+            'view_comment',
+            'change_comment',
         ]
 
         # Добавляем права к группе
@@ -55,7 +51,6 @@ class Command(BaseCommand):
             except Permission.DoesNotExist:
                 self.stdout.write(self.style.ERROR(f'Право {perm_codename} не найдено'))
 
-        # Создаем группу "Модераторы" с расширенными правами
         moderators_group, created = Group.objects.get_or_create(name='Модераторы')
         
         if created:
@@ -63,7 +58,6 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING('Группа "Модераторы" уже существует'))
 
-        # Права для модераторов (все права на посты и комментарии)
         all_post_permissions = Permission.objects.filter(content_type=post_content_type)
         all_comment_permissions = Permission.objects.filter(content_type=comment_content_type)
         

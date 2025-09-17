@@ -23,26 +23,15 @@ MEDIA_DIR = os.path.join(BASE_DIR,"media")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-s0eg9q5^i%wy4n5m78yvbpwkb3j3u)w8nx=pr&c6+ag8ltvs5t"
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-# Login URLs
+
 LOGIN_URL = '/signin/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-# Email settings
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'workflow304@inbox.ru'
-EMAIL_HOST_PASSWORD = ''
-DEFAULT_FROM_EMAIL = 'WordFlow <noreply@wordflow.com>'
-
-# Account activation settings
 ACCOUNT_ACTIVATION_DAYS = 7
 
 
