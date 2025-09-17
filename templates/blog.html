@@ -116,7 +116,7 @@
 
   /* Стили для категорий */
   .down-content span {
-    background: linear-gradient(45deg, #17a2b8, #20c997);
+<!--    background: linear-gradient(45deg, #17a2b8, #20c997);-->
     color: white;
     padding: 8px 16px;
     border-radius: 25px;
@@ -126,7 +126,7 @@
     letter-spacing: 1px;
     display: inline-block;
     transition: all 0.3s ease;
-    box-shadow: 0 3px 10px rgba(23, 162, 184, 0.3);
+<!--    box-shadow: 0 3px 10px rgba(23, 162, 184, 0.3);-->
   }
 
   .blog-post:hover .down-content span {
@@ -150,7 +150,7 @@
 
   .post-info li a {
     color: #6c757d;
-    text-decoration: none;
+    texbt-decoration: none;
     font-size: 14px;
     transition: all 0.3s ease;
     padding: 5px 10px;
@@ -282,7 +282,6 @@
   /* Стили для контейнера постов */
   .blog-posts {
     position: relative;
-    padding: 50px 0;
   }
 
   /* Стили для основного заголовка */
@@ -426,7 +425,7 @@
                     <ul class="post-info">
                       <li><a href="#">{{post.user}}</a></li>
                       <li><a href="#">{{post.time}}</a></li>
-                      <li><a href="#"><span class="view-icon"><i class="fas fa-eye"></i><noscript>👁</noscript></span> {{post.views|views_count_text}}</a></li>
+                      <li><a href="#"></i><noscript>👁</noscript></span> {{post.views|views_count_text}}</a></li>
                       <li><a href="#"><i class="fa fa-comment"></i> {{post|comment_count_text}}</a></li>
                     </ul>
                     <div style="max-width: 100%;">{{post.content|safe|slice:"0:500"}}....</div>

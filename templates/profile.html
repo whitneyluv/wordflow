@@ -65,10 +65,10 @@
             border-radius: 5px 0 0 5px;
         }
 
-        .bg-c-lite-green {
-            background: linear-gradient(to top, #4b35d9, #eb31a7);
-            box-shadow: 0 1px 20px 0 rgba(69, 90, 100, 0.08);
-        }
+<!--        .bg-c-lite-green {-->
+<!--            background: linear-gradient(to top, #4b35d9, #eb31a7);-->
+<!--            box-shadow: 0 1px 20px 0 rgba(69, 90, 100, 0.08);-->
+<!--        }-->
 
         .user-profile {
             padding: 20px 0;
@@ -251,23 +251,10 @@
                     <div class="col-xl-12 col-md-12" id="card">
                         <div class="card user-card-full">
                             <div class="row m-l-0 m-r-0">
-                                <div class="col-sm-4 bg-c-lite-green user-profile">
-                                    <div class="card-block text-center text-white">
-                                        <div class="m-b-25">
-
-                                            <img src="{% static 'assets/images/user.png' %}" class="img-radius"
-                                                alt="User-Profile-Image" style="border-radius: 50%;">
-
-                                        </div>
-                                        <h6 class="f-w-800 h3" style="text-transform: capitalize;">{{user.username}}
-                                        </h6>
-                                        <i class=" mdi mdi-square-edit-outline feather icon-edit m-t-10 f-16"></i>
-                                    </div>
-                                </div>
                                 <div class="col-sm-8">
                                     <div class="card-block">
                                         <h6 class="m-b-20 p-b-5 b-b-default f-w-600"
-                                            style="font-size: 30px; padding: 20px;  color: #7461f3;">Профиль <a
+                                            style="font-size: 25px; padding: 15px;  color: #198754;">Профиль <a
                                                 href="{% url 'profileedit' user.id %}"
                                                 class="float-right text-decoration-none text-success"
                                                 style="font-size: 15px;">Редактировать профиль</a>
@@ -295,7 +282,7 @@
                                         <div class="row row-cols-lg-2 row-cols-1">
                                             {% for post in posts%}
                                             <div class="col col-lg-6 col-12 mb-2">
-                                                <img src="{{media_url}}{{post.image}}" alt="" height="300px"
+                                                <img src="{{media_url}}{{post.image}}" style="border-radius: 15px; alt="height="300px"
                                                     width="100%">
                                                 <div class="px-3 py-2 shadow{% if post in editable_posts %} border-left-info{% endif %}">
                                                     <h5>{{post.postname}}

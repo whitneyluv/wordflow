@@ -2,10 +2,12 @@ from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime
 from ckeditor.fields import RichTextField
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
 
 now = datetime.now()
 time = now.strftime("%d %B %Y")
-
 
 class Category(models.Model):
     """Модель для категорий постов"""
