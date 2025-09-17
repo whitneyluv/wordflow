@@ -71,15 +71,15 @@ WordFlow - это современная блог-платформа на Django
 ```
 wordflow/
 ├── wordflow/              # Основное Django приложение
-│   ├── models.py         # Модели данных (Post, Comment, Category, etc.)
-│   ├── views.py          # Представления
-│   ├── urls.py           # URL маршруты
-│   ├── templatetags/     # Пользовательские теги шаблонов
-│   └── migrations/       # Миграции базы данных
-├── templates/            # HTML шаблоны
-├── static/              # Статические файлы (CSS, JS, изображения)
-├── media/               # Загруженные пользователями файлы
-└── myproject/           # Настройки Django проекта
+│   ├── models.py          # Модели данных (Post, Comment, Category, etc.)
+│   ├── views.py           # Представления
+│   ├── urls.py            # URL маршруты
+│   ├── templatetags/      # Пользовательские теги шаблонов
+│   └── migrations/        # Миграции базы данных
+├── templates/             # HTML шаблоны
+├── static/                # Статические файлы (CSS, JS, изображения)
+├── media/                 # Загруженные пользователями файлы
+└── myproject/             # Настройки Django проекта
 ```
 
 ## Основные модели
