@@ -1,13 +1,17 @@
 from django.db import models
 from django.contrib.auth.models import User
-from datetime import datetime
-from ckeditor.fields import RichTextField
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from ckeditor.fields import RichTextField
+from .constants import (
+    DEFAULT_LIKES, DEFAULT_VIEWS, MAX_POST_NAME_LENGTH,
+    MAX_CATEGORY_NAME_LENGTH, MAX_COMMENT_LENGTH, MAX_DELETED_MESSAGE_LENGTH
+)
 
 
-now = datetime.now()
-time = now.strftime("%d %B %Y")
+def get_current_time_str():
+    """Возвращает текущее время в формате строки"""
+    return timezone.now().strftime("%d %B %Y")
 
 class Category(models.Model):
     """Модель для категорий постов"""
@@ -24,18 +28,84 @@ class Category(models.Model):
 
 
 class Post(models.Model):
-    postname = models.CharField(max_length=600)
-    category = models.CharField(max_length=600)  # Временно оставляем как CharField
-    category_obj = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)  # Новое поле для связи
-    image = models.ImageField(upload_to='images/posts', blank=False, null=False)
-    content = RichTextField()
-    time = models.CharField(default=time, max_length=100, blank=True)
-    likes = models.IntegerField(null=True, blank=True, default=0)
-    views = models.IntegerField(default=0)  # Общее количество просмотров
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='authored_posts')
-    editors = models.ManyToManyField(User, through='PostEditor', through_fields=('post', 'user'), related_name='editable_posts', blank=True)
-    viewed_by = models.ManyToManyField(User, through='PostView', related_name='viewed_posts')
-    liked_by = models.ManyToManyField(User, through='PostLike', related_name='liked_posts')
+    """Модель поста блога"""
+    postname = models.CharField(
+        max_length=MAX_POST_NAME_LENGTH,
+        verbose_name=_("Название поста"),
+        help_text=_("Введите название поста")
+    )
+    category = models.CharField(
+        max_length=MAX_CATEGORY_NAME_LENGTH,
+        verbose_name=_("Категория (текст)"),
+        help_text=_("Временное текстовое поле для категории")
+    )
+    category_obj = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Категория"),
+        help_text=_("Выберите категорию поста")
+    )
+    image = models.ImageField(
+        upload_to='images/posts',
+        verbose_name=_("Изображение"),
+        help_text=_("Загрузите изображение для поста")
+    )
+    content = RichTextField(
+        verbose_name=_("Содержание"),
+        help_text=_("Введите содержание поста")
+    )
+    time = models.CharField(
+        default=get_current_time_str,
+        max_length=100,
+        blank=True,
+        verbose_name=_("Время создания")
+    )
+    likes = models.IntegerField(
+        default=DEFAULT_LIKES,
+        verbose_name=_("Количество лайков")
+    )
+    views = models.IntegerField(
+        default=DEFAULT_VIEWS,
+        verbose_name=_("Количество просмотров")
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='authored_posts',
+        verbose_name=_("Автор")
+    )
+    editors = models.ManyToManyField(
+        User,
+        through='PostEditor',
+        through_fields=('post', 'user'),
+        related_name='editable_posts',
+        blank=True,
+        verbose_name=_("Редакторы")
+    )
+    viewed_by = models.ManyToManyField(
+        User,
+        through='PostView',
+        related_name='viewed_posts',
+        verbose_name=_("Просмотрели")
+    )
+    liked_by = models.ManyToManyField(
+        User,
+        through='PostLike',
+        related_name='liked_posts',
+        verbose_name=_("Поставили лайк")
+    )
+    
+    class Meta:
+        verbose_name = _("Пост")
+        verbose_name_plural = _("Посты")
+        ordering = ['-id']
+        indexes = [
+            models.Index(fields=['-id']),
+            models.Index(fields=['user']),
+            models.Index(fields=['category_obj']),
+        ]
 
     def __str__(self):
         return str(self.postname)
@@ -143,15 +213,67 @@ class PostLike(models.Model):
 
 
 class Comment(models.Model):
-    content = models.CharField(max_length=200)
-    time = models.CharField(default=time, max_length=100, blank=True)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
-    likes = models.IntegerField(default=0)
-    liked_by = models.ManyToManyField(User, through='CommentLike', related_name='liked_comments')
-    is_deleted = models.BooleanField(default=False)
-    deleted_message = models.CharField(max_length=100, blank=True, null=True)
+    """Модель комментария к посту"""
+    content = models.CharField(
+        max_length=MAX_COMMENT_LENGTH,
+        verbose_name=_("Содержание комментария")
+    )
+    time = models.CharField(
+        default=get_current_time_str,
+        max_length=100,
+        blank=True,
+        verbose_name=_("Время создания")
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        verbose_name=_("Пост")
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_("Автор")
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='replies',
+        verbose_name=_("Родительский комментарий")
+    )
+    likes = models.IntegerField(
+        default=DEFAULT_LIKES,
+        verbose_name=_("Количество лайков")
+    )
+    liked_by = models.ManyToManyField(
+        User,
+        through='CommentLike',
+        related_name='liked_comments',
+        verbose_name=_("Поставили лайк")
+    )
+    is_deleted = models.BooleanField(
+        default=False,
+        verbose_name=_("Удален")
+    )
+    deleted_message = models.CharField(
+        max_length=MAX_DELETED_MESSAGE_LENGTH,
+        blank=True,
+        null=True,
+        verbose_name=_("Сообщение об удалении")
+    )
+    
+    class Meta:
+        verbose_name = _("Комментарий")
+        verbose_name_plural = _("Комментарии")
+        ordering = ['id']
+        indexes = [
+            models.Index(fields=['post']),
+            models.Index(fields=['user']),
+            models.Index(fields=['parent']),
+        ]
 
     def __str__(self):
         if self.is_deleted:

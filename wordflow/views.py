@@ -5,60 +5,37 @@ from django.contrib.auth.models import User
 from django.contrib import messages, auth
 from django.contrib.auth import authenticate, login
 from django.conf import settings
-from .models import Post, Comment, PostEditor, GlobalEditor
-from .models import *
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from .models import Post, Comment, PostEditor, GlobalEditor, Category
+from .forms import PostForm, CustomUserCreationForm
+from .constants import (
+    POSTS_PER_PAGE_INDEX, POSTS_PER_PAGE_BLOG, USER_POSTS_PREVIEW_COUNT,
+    SORT_NEWEST, SORT_LIKES, SORT_VIEWS, SORT_COMMENTS, MESSAGES
+)
+from .logging_config import auth_logger, post_logger, security_logger, main_logger
 
 
 def index(request):
-    from .models import Category, Comment
-    from django.db.models import Count
-    from django.core.paginator import Paginator
-
-    sort_by = request.GET.get('sort', 'newest')
+    """
+    Главная страница с постами, сортировкой и фильтрацией по категориям
+    """
+    sort_by = request.GET.get('sort', SORT_NEWEST)
     category_filter = request.GET.get('category')
     page_number = request.GET.get('page', 1)
 
-    print(f"DEBUG INDEX: All GET parameters: {dict(request.GET)}")
-    print(f"DEBUG INDEX: sort_by = '{sort_by}'")
-    print(f"DEBUG INDEX: category_filter = '{category_filter}'")
-    print(f"DEBUG INDEX: page_number = '{page_number}'")
+    # Получаем посты пользователя для превью
+    user_posts = _get_user_posts_preview(request.user)
 
-    user_posts = Post.objects.filter(user_id=request.user.id).order_by("-id") if request.user.is_authenticated else Post.objects.none()
+    # Получаем все посты с фильтрацией и сортировкой
+    main_posts = _get_filtered_and_sorted_posts(category_filter, sort_by)
 
-    main_posts = Post.objects.all()
-
-    if category_filter and category_filter != '':
-        if category_filter.isdigit():
-            main_posts = main_posts.filter(category_obj_id=category_filter)
-        else:
-            from django.db.models import Q
-            main_posts = main_posts.filter(
-                Q(category_obj__name__icontains=category_filter) | 
-                Q(category__icontains=category_filter)
-            )
-    
-    # Сортировка
-    print(f"DEBUG INDEX: Applying sorting: {sort_by}")
-    if sort_by == 'likes':
-        main_posts = main_posts.annotate(num_likes=Count('liked_by', distinct=True)).order_by('-num_likes', '-id')
-        print(f"DEBUG INDEX: Sorted by likes")
-    elif sort_by == 'views':
-        main_posts = main_posts.order_by('-views', '-id')
-        print(f"DEBUG INDEX: Sorted by views")
-    elif sort_by == 'comments':
-        main_posts = main_posts.annotate(num_comments=Count('comment', distinct=True)).order_by('-num_comments', '-id')
-        print(f"DEBUG INDEX: Sorted by comments - found {main_posts.count()} posts")
-    else:  # newest
-        main_posts = main_posts.order_by('-id')
-        print(f"DEBUG INDEX: Sorted by newest (default)")
-    
-    print(f"DEBUG INDEX: Final posts count: {main_posts.count()}")
-
-    paginator = Paginator(main_posts, 12)
+    # Пагинация
+    paginator = Paginator(main_posts, POSTS_PER_PAGE_INDEX)
     page_obj = paginator.get_page(page_number)
     
     return render(request, "index.html", {
-        'posts': user_posts[:3],  
+        'posts': user_posts,
         'top_posts': page_obj,
         'page_obj': page_obj,
         'categories': Category.objects.all(),
@@ -69,13 +46,49 @@ def index(request):
     })
 
 
-def signup(request):
-    from .forms import CustomUserCreationForm
+def _get_user_posts_preview(user):
+    """Возвращает превью постов пользователя"""
+    if user.is_authenticated:
+        return Post.objects.filter(user_id=user.id).order_by("-id")[:USER_POSTS_PREVIEW_COUNT]
+    return Post.objects.none()
+
+
+def _get_filtered_and_sorted_posts(category_filter, sort_by):
+    """Получает отфильтрованные и отсортированные посты"""
+    posts = Post.objects.all()
+
+    # Фильтрация по категории
+    if category_filter and category_filter.strip():
+        if category_filter.isdigit():
+            posts = posts.filter(category_obj_id=category_filter)
+        else:
+            posts = posts.filter(
+                Q(category_obj__name__icontains=category_filter) | 
+                Q(category__icontains=category_filter)
+            )
     
+    # Сортировка
+    if sort_by == SORT_LIKES:
+        posts = posts.annotate(num_likes=Count('liked_by', distinct=True)).order_by('-num_likes', '-id')
+    elif sort_by == SORT_VIEWS:
+        posts = posts.order_by('-views', '-id')
+    elif sort_by == SORT_COMMENTS:
+        posts = posts.annotate(num_comments=Count('comment', distinct=True)).order_by('-num_comments', '-id')
+    else:  # SORT_NEWEST
+        posts = posts.order_by('-id')
+    
+    return posts
+
+
+def signup(request):
+    """
+    Регистрация нового пользователя
+    """
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
+            auth_logger.info(f'Новый пользователь зарегистрирован: {user.username} (email: {user.email})')
             messages.success(request, f'Аккаунт успешно создан для {user.username}! Теперь вы можете войти в систему.')
             return redirect('signin')
         else:
@@ -107,6 +120,7 @@ def signup(request):
 
 
 def signin(request):
+    """Вход пользователя в систему"""
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
@@ -116,11 +130,14 @@ def signin(request):
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 auth.login(request, user)
+                auth_logger.info(f'Пользователь {username} успешно вошел в систему')
                 return redirect("index")
             else:
+                security_logger.warning(f'Неудачная попытка входа для пользователя {username}: неправильный пароль')
                 messages.error(request, "Неправильный пароль")
                 return redirect('signin')
         except User.DoesNotExist:
+            security_logger.warning(f'Попытка входа с несуществующим именем пользователя: {username}')
             messages.error(request, "Пользователь с таким именем не существует")
             return redirect('signin')
 
@@ -128,24 +145,31 @@ def signin(request):
 
 
 def logout(request):
-    auth.logout(request)
+    """Выход пользователя из системы"""
+    if request.user.is_authenticated:
+        username = request.user.username
+        auth.logout(request)
+        auth_logger.info(f'Пользователь {username} вышел из системы')
     return redirect('index')
 
 
 def blog(request):
-    from django.core.paginator import Paginator
-
+    """
+    Страница блога со всеми постами
+    """
     page_number = request.GET.get('page', 1)
 
-    user_posts = Post.objects.filter(user_id=request.user.id).order_by("-id") if request.user.is_authenticated else Post.objects.none()
+    # Получаем посты пользователя для превью
+    user_posts = _get_user_posts_preview(request.user)
 
+    # Все посты по дате
     all_posts = Post.objects.all().order_by("-id")
 
-    paginator = Paginator(all_posts, 5)
+    paginator = Paginator(all_posts, POSTS_PER_PAGE_BLOG)
     page_obj = paginator.get_page(page_number)
     
     return render(request, "blog.html", {
-        'posts': user_posts[:3],
+        'posts': user_posts,
         'recent_posts': page_obj,
         'page_obj': page_obj,
         'user': request.user,
@@ -155,35 +179,28 @@ def blog(request):
 
 @login_required
 def create(request):
-    from .forms import PostForm
-    from .models import Category
-
+    """
+    Создание нового поста
+    """
+    # Проверка прав на создание постов
     if not Post.can_create_posts(request.user):
-        messages.error(request, "У вас нет прав для создания постов. Обратитесь к администратору для получения прав редактирования.")
+        messages.error(
+            request, 
+            "У вас нет прав для создания постов. "
+            "Обратитесь к администратору для получения прав редактирования."
+        )
         return redirect('index')
     
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                post = form.save(commit=False)
-                post.user = request.user
-
-                category_choice = form.cleaned_data.get('category_choice')
-                new_category = form.cleaned_data.get('new_category', '').strip()
-                
-                if new_category:
-                    category, created = Category.objects.get_or_create(name=new_category)
-                    post.category_obj = category
-                    post.category = new_category
-                elif category_choice:
-                    post.category_obj = category_choice
-                    post.category = category_choice.name
-                
-                post.save()
+                post = _create_post_with_category(form, request.user)
+                post_logger.info(f'Пользователь {request.user.username} создал новый пост: "{post.postname}" (ID: {post.id})')
                 messages.success(request, "Пост успешно создан")
                 return redirect('index')
             except Exception as e:
+                post_logger.error(f'Ошибка при создании поста пользователем {request.user.username}: {str(e)}')
                 messages.error(request, f"Ошибка при создании поста: {str(e)}")
         else:
             for field, errors in form.errors.items():
@@ -196,6 +213,26 @@ def create(request):
         'form': form,
         'categories': Category.objects.all()
     })
+
+
+def _create_post_with_category(form, user):
+    """Создает пост с обработкой категории"""
+    post = form.save(commit=False)
+    post.user = user
+
+    category_choice = form.cleaned_data.get('category_choice')
+    new_category = form.cleaned_data.get('new_category', '').strip()
+    
+    if new_category:
+        category, created = Category.objects.get_or_create(name=new_category)
+        post.category_obj = category
+        post.category = new_category
+    elif category_choice:
+        post.category_obj = category_choice
+        post.category = category_choice.name
+    
+    post.save()
+    return post
 
 
 def profile(request, id):

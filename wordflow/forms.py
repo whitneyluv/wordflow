@@ -1,11 +1,118 @@
+"""
+Формы для приложения WordFlow
+
+Этот файл содержит все формы для создания и редактирования
+постов, регистрации пользователей и других операций.
+"""
+
+import re
+from typing import Dict, Any, List
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
-from .models import Post, Category
 from ckeditor.widgets import CKEditorWidget
-import re
+from .models import Post, Category
+from .constants import MAX_CATEGORY_NAME_LENGTH, ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_SIZE_MB
+from .utils import safe_int, truncate_text
+
+
+# Константы для валидации
+ALLOWED_EMAIL_DOMAINS = [
+    'gmail.com', 'mail.ru', 'yandex.ru', 'yandex.com', 'yahoo.com',
+    'outlook.com', 'hotmail.com', 'rambler.ru', 'list.ru', 'bk.ru',
+    'inbox.ru', 'ya.ru', 'icloud.com', 'protonmail.com'
+]
+
+MIN_PASSWORD_LENGTH = 8
+MIN_UNIQUE_CHARS = 4
+MIN_CHAR_TYPES = 3
+
+
+def get_common_passwords() -> List[str]:
+    """Возвращает список часто используемых паролей"""
+    return [
+        # Числовые последовательности
+        '12345678', '87654321', '123456789', '987654321', '1234567890',
+        '11111111', '22222222', '33333333', '44444444', '55555555',
+        '66666666', '77777777', '88888888', '99999999', '00000000',
+        '123123', '111111', '222222', '333333', '444444', '555555',
+        '666666', '777777', '888888', '999999', '000000', '121212',
+        
+        # Простые пароли
+        'password', 'password1', 'password123', 'pass', 'pass123',
+        'qwerty', 'qwerty123', 'qwertyui', 'qwertyuiop', 'asdfgh',
+        'asdfghjk', 'asdfghjkl', 'zxcvbn', 'zxcvbnm', 'admin',
+        'administrator', 'root', 'user', 'guest', 'test', 'demo',
+        
+        # Русские пароли
+        'пароль', 'пароль123', 'йцукен', 'йцукенг', 'фывапр',
+        'фывапролд', 'ячсмить', 'ячсмитьбю', 'админ', 'администратор',
+        
+        # Имена
+        'alexander', 'alexandra', 'andrew', 'anna', 'anton', 'maria',
+        'michael', 'natasha', 'nikolai', 'olga', 'pavel', 'sergey',
+        'александр', 'александра', 'андрей', 'анна', 'антон', 'мария',
+    ]
+
+
+def validate_password_strength(password: str) -> List[str]:
+    """
+    Проверяет надежность пароля и возвращает список ошибок
+    
+    Args:
+        password: Пароль для проверки
+        
+    Returns:
+        Список ошибок валидации
+    """
+    errors = []
+    
+    if len(password) < MIN_PASSWORD_LENGTH:
+        errors.append(f'Пароль слишком короткий. Минимум {MIN_PASSWORD_LENGTH} символов.')
+    
+    if password.isdigit():
+        errors.append('Пароль не может состоять только из цифр.')
+    
+    if password.isalpha():
+        errors.append('Пароль не может состоять только из букв.')
+    
+    # Проверка типов символов
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password)
+    
+    char_types = sum([has_upper, has_lower, has_digit, has_special])
+    if char_types < MIN_CHAR_TYPES:
+        errors.append(
+            f'Пароль должен содержать минимум {MIN_CHAR_TYPES} типа символов: '
+            'заглавные буквы, строчные буквы, цифры и специальные символы.'
+        )
+    
+    if len(set(password)) < MIN_UNIQUE_CHARS:
+        errors.append(f'Пароль должен содержать минимум {MIN_UNIQUE_CHARS} уникальных символов.')
+    
+    # Проверка на простые последовательности
+    sequences = ['123456', '654321', 'abcdef', 'fedcba', 'qwerty', 'asdfgh', 'zxcvbn']
+    for seq in sequences:
+        if seq in password.lower():
+            errors.append('Пароль содержит простые последовательности символов.')
+            break
+    
+    # Проверка на повторяющиеся паттерны
+    for i in range(len(password) - 2):
+        pattern = password[i:i+3]
+        if password.count(pattern) > 1:
+            errors.append('Пароль содержит повторяющиеся паттерны.')
+            break
+    
+    # Проверка на распространенные пароли
+    if password.lower() in [p.lower() for p in get_common_passwords()]:
+        errors.append('Введённый пароль слишком широко распространён.')
+    
+    return errors
 
 class PostForm(forms.ModelForm):
     content = forms.CharField(
@@ -53,10 +160,27 @@ class PostForm(forms.ModelForm):
         return content
     
     def clean_image(self):
+        """Валидация изображения поста"""
         image = self.cleaned_data.get('image')
         
         if not image:
-            raise ValidationError('Пост должен содержать изображение. Нельзя создавать посты без фотографий.')
+            raise ValidationError(
+                'Пост должен содержать изображение. '
+                'Нельзя создавать посты без фотографий.'
+            )
+        
+        # Проверяем размер файла
+        if image.size > MAX_IMAGE_SIZE_MB * 1024 * 1024:
+            raise ValidationError(
+                f'Размер изображения не должен превышать {MAX_IMAGE_SIZE_MB} МБ.'
+            )
+        
+        # Проверяем расширение файла
+        file_extension = image.name.split('.')[-1].lower() if '.' in image.name else ''
+        if file_extension not in ALLOWED_IMAGE_EXTENSIONS:
+            raise ValidationError(
+                f'Разрешены только следующие форматы: {", ".join(ALLOWED_IMAGE_EXTENSIONS)}'
+            )
         
         return image
     
@@ -125,22 +249,44 @@ class PostEditForm(forms.ModelForm):
                 if self.instance.category_obj:
                     self.fields['category_choice'].initial = self.instance.category_obj
     
-    def clean_content(self):
+    def clean_content(self) -> str:
+        """Валидация содержания поста"""
         content = self.cleaned_data.get('content', '').strip()
-
-        import re
+        
+        # Удаляем HTML теги для проверки наличия текста
         content_text = re.sub(r'<[^>]+>', '', content).strip()
         
         if not content_text:
-            raise ValidationError('Пост должен содержать текст. Нельзя создавать посты с пустым содержанием.')
+            raise ValidationError(
+                'Пост должен содержать текст. '
+                'Нельзя создавать посты с пустым содержанием.'
+            )
         
         return content
     
     def clean_image(self):
+        """Валидация изображения поста"""
         image = self.cleaned_data.get('image')
-
+        
         if not image and (not self.instance or not self.instance.image):
-            raise ValidationError('Пост должен содержать изображение. Нельзя создавать посты без фотографий.')
+            raise ValidationError(
+                'Пост должен содержать изображение. '
+                'Нельзя создавать посты без фотографий.'
+            )
+        
+        # Проверяем размер файла
+        if image and image.size > MAX_IMAGE_SIZE_MB * 1024 * 1024:
+            raise ValidationError(
+                f'Размер изображения не должен превышать {MAX_IMAGE_SIZE_MB} МБ.'
+            )
+        
+        # Проверяем расширение файла
+        if image:
+            file_extension = image.name.split('.')[-1].lower() if '.' in image.name else ''
+            if file_extension not in ALLOWED_IMAGE_EXTENSIONS:
+                raise ValidationError(
+                    f'Разрешены только следующие форматы: {", ".join(ALLOWED_IMAGE_EXTENSIONS)}'
+                )
         
         return image
     
@@ -199,157 +345,64 @@ class CustomUserCreationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def clean_email(self):
+    def clean_email(self) -> str:
+        """Валидация email адреса"""
         email = self.cleaned_data.get('email')
-        if email:
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            if not re.match(email_pattern, email):
-                raise ValidationError('Пожалуйста, укажите правильный email адрес (например: example@gmail.com)')
-
-            allowed_domains = [
-                'gmail.com', 'mail.ru', 'yandex.ru', 'yandex.com', 'yahoo.com',
-                'outlook.com', 'hotmail.com', 'rambler.ru', 'list.ru', 'bk.ru',
-                'inbox.ru', 'ya.ru', 'icloud.com', 'protonmail.com'
-            ]
+        if not email:
+            return email
             
-            domain = email.split('@')[-1].lower()
-            if domain not in allowed_domains:
-                raise ValidationError(
-                    f'Используйте email с одним из разрешенных доменов: {", ".join(allowed_domains)}'
-                )
+        # Проверка формата email
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            raise ValidationError(
+                'Пожалуйста, укажите правильный email адрес (например: example@gmail.com)'
+            )
 
-            if User.objects.filter(email=email).exists():
-                raise ValidationError('Пользователь с таким email уже существует.')
+        # Проверка разрешенных доменов
+        domain = email.split('@')[-1].lower()
+        if domain not in ALLOWED_EMAIL_DOMAINS:
+            raise ValidationError(
+                f'Используйте email с одним из разрешенных доменов: {", ".join(ALLOWED_EMAIL_DOMAINS)}'
+            )
+
+        # Проверка уникальности email
+        if User.objects.filter(email=email).exists():
+            raise ValidationError('Пользователь с таким email уже существует.')
         
         return email
 
-    def clean_password1(self):
+    def clean_password1(self) -> str:
+        """Валидация пароля с использованием вспомогательной функции"""
         password1 = self.cleaned_data.get('password1')
-        if password1:
-            errors = []
-
-            if len(password1) < 8:
-                errors.append('Пароль слишком короткий. Он должен содержать как минимум 8 символов.')
-
-            if password1.isdigit():
-                errors.append('Пароль не может состоять только из цифр.')
-
-            if password1.isalpha():
-                errors.append('Пароль не может состоять только из букв.')
-
-            has_upper = any(c.isupper() for c in password1)
-            has_lower = any(c.islower() for c in password1)
-            has_digit = any(c.isdigit() for c in password1)
-            has_special = any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password1)
+        if not password1:
+            return password1
             
-            char_types = sum([has_upper, has_lower, has_digit, has_special])
-            if char_types < 3:
-                errors.append('Пароль должен содержать минимум 3 типа символов: заглавные буквы, строчные буквы, цифры и специальные символы.')
-
-            if len(set(password1)) < 4:
-                errors.append('Пароль содержит слишком мало уникальных символов.')
-
-            sequences = ['123456', '654321', 'abcdef', 'fedcba', 'qwerty', 'asdfgh', 'zxcvbn']
-            for seq in sequences:
-                if seq in password1.lower():
-                    errors.append('Пароль содержит простые последовательности символов.')
-                    break
-
-            for i in range(len(password1) - 2):
-                pattern = password1[i:i+3]
-                if password1.count(pattern) > 1:
-                    errors.append('Пароль содержит повторяющиеся паттерны.')
-                    break
-
-            common_passwords = [
-                '12345678', '87654321', '123456789', '987654321', '1234567890',
-                '11111111', '22222222', '33333333', '44444444', '55555555',
-                '66666666', '77777777', '88888888', '99999999', '00000000',
-                '123123', '111111', '222222', '333333', '444444', '555555',
-                '666666', '777777', '888888', '999999', '000000', '121212',
-                '131313', '141414', '151515', '161616', '171717', '181818',
-                '191919', '202020', '212121', '232323', '242424', '252525',
-                '262626', '272727', '282828', '292929', '303030',
-
-                'password', 'password1', 'password123', 'pass', 'pass123',
-                'qwerty', 'qwerty123', 'qwertyui', 'qwertyuiop', 'asdfgh',
-                'asdfghjk', 'asdfghjkl', 'zxcvbn', 'zxcvbnm', 'admin',
-                'administrator', 'root', 'user', 'guest', 'test', 'demo',
-                'welcome', 'login', 'master', 'super', 'secret', 'default',
-                'computer', 'internet', 'windows', 'microsoft', 'google',
-                'facebook', 'twitter', 'instagram', 'youtube', 'apple', 'qwerty12'
-
-                'пароль', 'парольпароль', 'пароль123', 'йцукен', 'йцукенг',
-                'фывапр', 'фывапролд', 'ячсмить', 'ячсмитьбю', 'админ',
-                'администратор', 'пользователь', 'гость', 'тест', 'демо',
-                'добро пожаловать', 'вход', 'мастер', 'супер', 'секрет',
-                'компьютер', 'интернет', 'виндовс', 'майкрософт', 'гугл',
-
-                '19900101', '19910101', '19920101', '19930101', '19940101',
-                '19950101', '19960101', '19970101', '19980101', '19990101',
-                '20000101', '20010101', '20020101', '20030101', '20040101',
-                '20050101', '20060101', '20070101', '20080101', '20090101',
-                '20100101', '20110101', '20120101', '20130101', '20140101',
-                '20150101', '20160101', '20170101', '20180101', '20190101',
-                '20200101', '20210101', '20220101', '20230101', '20240101',
-                '01011990', '01011991', '01011992', '01011993', '01011994',
-                '01011995', '01011996', '01011997', '01011998', '01011999',
-                '01012000', '01012001', '01012002', '01012003', '01012004',
-                '01012005', '01012006', '01012007', '01012008', '01012009',
-                '01012010', '01012011', '01012012', '01012013', '01012014',
-                '01012015', '01012016', '01012017', '01012018', '01012019',
-                '01012020', '01012021', '01012022', '01012023', '01012024',
-
-                'alexander', 'alexandra', 'andrew', 'anna', 'anton', 'maria',
-                'michael', 'natasha', 'nikolai', 'olga', 'pavel', 'sergey',
-                'tatiana', 'vladimir', 'александр', 'александра', 'андрей',
-                'анна', 'антон', 'мария', 'михаил', 'наташа', 'николай',
-                'ольга', 'павел', 'сергей', 'татьяна', 'владимир',
-
-                'football', 'basketball', 'soccer', 'tennis', 'hockey',
-                'baseball', 'volleyball', 'golf', 'swimming', 'running',
-                'nike', 'adidas', 'puma', 'reebok', 'converse', 'vans',
-                'coca-cola', 'pepsi', 'mcdonalds', 'kfc', 'burger',
-
-                'abc123', 'abc12345', 'abcd1234', 'abcdef', 'abcdefg',
-                'abcdefgh', 'abcdefghi', 'qwe123', 'asd123', 'zxc123',
-                'qaz123', 'wsx123', 'edc123', 'rfv123', 'tgb123',
-                'yhn123', 'ujm123', 'ik123', 'ol123', 'p123',
-
-                'qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'qazwsx', 'wsxedc',
-                'edcrfv', 'rfvtgb', 'tgbyhn', 'yhnujm', 'ujmik',
-                'ikol', 'olp', 'plokij', 'okijnuhb', 'uhbygv',
-                'ygvtfc', 'tgcrdx', 'rdxesz', 'eszwaq',
-
-                'january', 'february', 'march', 'april', 'may', 'june',
-                'july', 'august', 'september', 'october', 'november', 'december',
-                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-                'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-                'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
-                'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'
-            ]
-            if password1.lower() in common_passwords:
-                errors.append('Введённый пароль слишком широко распространён.')
-
-            try:
-                validate_password(password1, self.instance)
-            except ValidationError as error:
-                for err in error.messages:
-                    if 'too common' in err.lower() and 'Введённый пароль слишком широко распространён.' not in errors:
-                        errors.append('Введённый пароль слишком широко распространён.')
-                    elif 'similar' in err.lower():
-                        errors.append('Пароль слишком похож на другую вашу личную информацию.')
-            
-            if errors:
-                raise ValidationError(errors)
+        # Используем нашу функцию для проверки надежности пароля
+        errors = validate_password_strength(password1)
+        
+        # Дополнительная проверка Django валидатором
+        try:
+            validate_password(password1, self.instance)
+        except ValidationError as error:
+            for err in error.messages:
+                if 'too common' in err.lower() and 'Введённый пароль слишком широко распространён.' not in errors:
+                    errors.append('Введённый пароль слишком широко распространён.')
+                elif 'similar' in err.lower():
+                    errors.append('Пароль слишком похож на другую вашу личную информацию.')
+        
+        if errors:
+            raise ValidationError(errors)
                 
         return password1
 
-    def clean_password2(self):
+    def clean_password2(self) -> str:
+        """Валидация подтверждения пароля"""
         password1 = self.cleaned_data.get('password1')
         password2 = self.cleaned_data.get('password2')
+        
         if password1 and password2 and password1 != password2:
             raise ValidationError('Пароли не совпадают.')
+            
         return password2
 
     def save(self, commit=True):

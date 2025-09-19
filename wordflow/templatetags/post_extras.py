@@ -1,5 +1,7 @@
 from django import template
 from ..models import Comment
+from ..constants import RUSSIAN_PLURAL_FORMS
+from ..utils import pluralize_russian, pluralize_russian_by_type
 
 register = template.Library()
 
@@ -19,19 +21,35 @@ def comment_count(post):
 def comment_count_text(post):
     """Возвращает количество комментариев с правильным склонением"""
     count = Comment.objects.filter(post=post).count()
-    return pluralize_russian(count, 'комментарий', 'комментария', 'комментариев')
+    return pluralize_russian_by_type(count, 'comment')
 
 @register.filter
 def views_count_text(views):
     """Возвращает количество просмотров с правильным склонением"""
-    return pluralize_russian(views, 'просмотр', 'просмотра', 'просмотров')
+    return pluralize_russian_by_type(views, 'view')
+
+@register.filter
+def likes_count_text(likes):
+    """Возвращает количество лайков с правильным склонением"""
+    return pluralize_russian_by_type(likes, 'like')
 
 @register.filter
 def can_delete_comment(comment, user):
-    """Проверяет, может ли пользователь удалить комментарий (автор комментария, создатель поста или админ)"""
+    """
+    Проверяет, может ли пользователь удалить комментарий
+    
+    Права на удаление:
+    - Автор комментария
+    - Автор поста
+    - Администратор
+    """
     if not user.is_authenticated:
         return False
-    return user == comment.user or user == comment.post.user or user.is_superuser
+    return (
+        user == comment.user or 
+        user == comment.post.user or 
+        user.is_superuser
+    )
 
 @register.filter
 def can_create_posts(user):
@@ -51,10 +69,4 @@ def can_edit_post(post, user):
     """Проверяет, может ли пользователь редактировать пост"""
     return post.can_edit(user)
 
-def pluralize_russian(count, form1, form2, form5):
-    if count % 10 == 1 and count % 100 != 11:
-        return f"{count} {form1}"
-    elif 2 <= count % 10 <= 4 and (count % 100 < 10 or count % 100 >= 20):
-        return f"{count} {form2}"
-    else:
-        return f"{count} {form5}"
+# Функции склонения теперь в utils.py
